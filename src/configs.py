@@ -1,6 +1,6 @@
 def get_config():
     conf = {
-        'workdir': './data/github/',
+        'workdir': './data/',
         # data_params
         # training data
         'train_name': 'train.methname.h5',
