@@ -49,6 +49,8 @@ def get_config():
         'save_every': 5,
         'reload': -1,  # 970,#epoch that the model is reloaded from . If reload=0, then train from scratch
 
+        'model_name': "java_cs",
+
         # model_params
         'emb_size': 100,
         'n_hidden': 400,  # number of hidden dimension of code/desc representation

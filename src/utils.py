@@ -37,7 +37,7 @@ def asMinutes(s):
 def timeSince(since, percent):
     now = time.time()
     s = now - since
-    es = s / (percent)
+    es = s / percent
     rs = es - s
     return '%s<%s' % (asMinutes(s), asMinutes(rs))
 

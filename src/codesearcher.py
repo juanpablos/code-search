@@ -5,17 +5,16 @@ import math
 import os
 import random
 import threading
-import traceback
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import optim
 
-from configs import get_config
-from data import load_dict, CodeSearchDataset, load_vecs, save_vecs
-from models import JointEmbeder
-from utils import normalize, dot_np, gVar, sent2indexes
+from src.configs import get_config
+from src.data import load_dict, CodeSearchDataset, load_vecs, save_vecs
+from src.models import JointEmbeder
+from src.utils import normalize, dot_np, gVar, sent2indexes
 
 random.seed(42)
 logger = logging.getLogger(__name__)
@@ -59,20 +58,16 @@ class CodeSearcher:
 
     # Model Loading / saving
     def save_model_epoch(self, model, epoch):
-        if not os.path.exists(self.path + 'models/' + self.model_params['model_name'] + '/'):
-            os.makedirs(self.path + 'models/' + self.model_params['model_name'] + '/')
-        model.save(self.path + 'models/' + self.model_params['model_name'] + '/epo%d_code.h5' % epoch,
-                   self.path + 'models/' + self.model_params['model_name'] + '/epo%d_desc.h5' % epoch, overwrite=True)
+        if not os.path.exists('{}models/{}/'.format(self.path, self.model_params['model_name'])):
+            os.makedirs('{}models/{}/'.format(self.path, self.model_params['model_name']))
+        torch.save(model.state_dict(),
+                   '{}models/{}/epo{}_code.h5'.format(self.path, self.model_params['model_name'], epoch))
 
     def load_model_epoch(self, model, epoch):
-        assert os.path.exists(
-            self.path + 'models/' + self.model_params[
-                'model_name'] + '/epo%d_code.h5' % epoch), 'Weights at epoch %d not found' % epoch
-        assert os.path.exists(
-            self.path + 'models/' + self.model_params[
-                'model_name'] + '/epo%d_desc.h5' % epoch), 'Weights at epoch %d not found' % epoch
-        model.load(self.path + 'models/' + self.model_params['model_name'] + '/epo%d_code.h5' % epoch,
-                   self.path + 'models/' + self.model_params['model_name'] + '/epo%d_desc.h5' % epoch)
+        assert os.path.exists('{}models/{}/epo{}_code.h5'.format(self.path, self.model_params['model_name'],
+                                                                 epoch)), 'Weights at epoch {} not found'.format(epoch)
+        model.load_state_dict(
+            torch.load('{}models/{}/epo{}_code.h5'.format(self.path, self.model_params['model_name'], epoch)))
 
     # Training
     def train(self, model):
@@ -88,11 +83,10 @@ class CodeSearcher:
                                       self.model_params['train_tokens'], self.model_params['tokens_len'],
                                       self.model_params['train_desc'], self.model_params['desc_len'])
 
-        data_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=self.model_params['batch_size'],
+        data_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size,
                                                   shuffle=True, drop_last=True, num_workers=1)
 
-        for epoch in range(self.model_params['reload'] + 1, nb_epoch):
-            itr = 1
+        for itr, epoch in enumerate(range(self.model_params['reload'] + 1, nb_epoch), start=1):
             losses = []
             for names, apis, toks, good_descs, bad_descs in data_loader:
                 names, apis, toks, good_descs, bad_descs = gVar(names), gVar(apis), gVar(toks), gVar(good_descs), gVar(
@@ -103,9 +97,8 @@ class CodeSearcher:
                 loss.backward()
                 optimizer.step()
                 if itr % log_every == 0:
-                    logger.info(f'epo:[{epoch:d}/{nb_epoch:d}] itr:{itr:d} Loss={np.mean(losses):.5f}')
+                    logger.info('epo:[{}/{}] itr:{} Loss={:.5f}'.format(epoch, nb_epoch, itr, np.mean(losses)))
                     losses = []
-                itr = itr + 1
 
             if epoch and epoch % valid_every == 0:
                 self.eval(model, 1000, 1)
@@ -116,7 +109,7 @@ class CodeSearcher:
     # Evaluation
     def eval(self, model, poolsize, K):
         """
-        simple validation in a code pool. 
+        simple validation in a code pool.
         @param: poolsize - size of the code pool, if -1, load the whole test set
         """
 
@@ -180,35 +173,35 @@ class CodeSearcher:
         data_loader = torch.utils.data.DataLoader(dataset=valid_set, batch_size=poolsize,
                                                   shuffle=True, drop_last=True, num_workers=1)
 
-        acc, mrr, map, ndcg = 0, 0, 0, 0
+        _acc, _mrr, _map, _ndcg = 0, 0, 0, 0
         n_pools = 0
         for names, apis, toks, descs, _ in data_loader:
             n_pools += 1
             names, apis, toks = gVar(names), gVar(apis), gVar(toks)
             code_repr = model.code_encoding(names, apis, toks)
-            for i in range(poolsize):
-                desc = gVar(descs[i].expand(poolsize, -1))
+            for it in range(poolsize):
+                desc = gVar(descs[it].expand(poolsize, -1))
                 desc_repr = model.desc_encoding(desc)
                 n_results = K
                 sims = F.cosine_similarity(code_repr, desc_repr).data.cpu().numpy()
                 negsims = np.negative(sims)
-                predict = np.argsort(negsims)  # predict = np.argpartition(negsims, kth=n_results-1)
-                predict = predict[:n_results]
-                predict = [int(k) for k in predict]
-                real = [i]
-                acc += ACC(real, predict)
-                mrr += MRR(real, predict)
-                map += MAP(real, predict)
-                ndcg += NDCG(real, predict)
-        acc = acc / n_pools / poolsize
-        mrr = mrr / n_pools / poolsize
-        map = map / n_pools / poolsize
-        ndcg = ndcg / n_pools / poolsize
-        logger.info('ACC={}, MRR={}, MAP={}, nDCG={}'.format(acc, mrr, map, ndcg))
+                prediction = np.argsort(negsims)  # predict = np.argpartition(negsims, kth=n_results-1)
+                prediction = prediction[:n_results]
+                prediction = [int(k) for k in prediction]
+                real_value = [it]
+                _acc += ACC(real_value, prediction)
+                _mrr += MRR(real_value, prediction)
+                _map += MAP(real_value, prediction)
+                _ndcg += NDCG(real_value, prediction)
+        _acc = _acc / n_pools / poolsize
+        _mrr = _mrr / n_pools / poolsize
+        _map = _map / n_pools / poolsize
+        _ndcg = _ndcg / n_pools / poolsize
+        logger.info('ACC={}, MRR={}, MAP={}, nDCG={}'.format(_acc, _mrr, _map, _ndcg))
 
-        return acc, mrr, map, ndcg
+        return _acc, _mrr, _map, _ndcg
 
-    #Compute Representation
+    # Compute Representation
     def repr_code(self, model):
         vecs = None
         use_set = CodeSearchDataset(self.model_params['workdir'],
@@ -262,7 +255,7 @@ def parse_args():
     parser = argparse.ArgumentParser("Train and Test Code Search(Embedding) Model")
     parser.add_argument("--mode", choices=["train", "eval", "repr_code", "search"], default='train',
                         help="The mode to run. The `train` mode trains a model;"
-                             " the `eval` mode evaluat models in a test set "
+                             " the `eval` mode evaluate models in a test set "
                              " The `repr_code/repr_desc` mode computes vectors"
                              " for a code snippet or a natural language description with a trained model.")
     parser.add_argument("--verbose", action="store_true", default=True, help="Be verbose")
@@ -274,12 +267,13 @@ if __name__ == '__main__':
     conf = get_config()
     searcher = CodeSearcher(conf)
 
-    #Define model
+    # Define model
     logger.info('Build Model')
+    _model = JointEmbeder(conf)  # initialize the model
+
     if conf['reload'] > 0:
-        _model = searcher.load_model_epoch(conf['reload'])
-    else:
-        _model = JointEmbeder(conf)  # initialize the model
+        searcher.load_model_epoch(_model, conf['reload'])
+
     _model = _model.cuda() if torch.cuda.is_available() else _model
 
     optimizer = optim.Adam(_model.parameters(), lr=conf['lr'])
@@ -292,7 +286,7 @@ if __name__ == '__main__':
         searcher.eval(_model, 1000, 10)
 
     elif args.mode == 'repr_code':
-        vecs = searcher.repr_code(_model)
+        searcher.repr_code(_model)
 
     elif args.mode == 'search':
         # search code based on a desc
@@ -300,13 +294,13 @@ if __name__ == '__main__':
         searcher.load_codebase()
         while True:
             try:
-                query = input('Input Query: ')
-                n_results = int(input('How many results? '))
-            except Exception:
+                _query = input('Input Query: ')
+                number_results = int(input('How many results? '))
+            except Exception as e:
                 print("Exception while parsing your input:")
-                traceback.print_exc()
+                print(e)
                 break
-            codes, sims = searcher.search(_model, query, n_results)
-            zipped = zip(codes, sims)
+            snippets, sims = searcher.search(_model, _query, number_results)
+            zipped = zip(snippets, sims)
             results = '\n\n'.join(map(str, zipped))  # combine the result into a returning string
             print(results)
