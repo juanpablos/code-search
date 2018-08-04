@@ -33,9 +33,9 @@ def get_config():
         'vocab_desc': 'vocab.desc.pkl',
 
         # training_params
-        'batch_size': 12,
+        'batch_size': 128,
         'chunk_size': 100000,
-        'nb_epoch': 2000,
+        'nb_epoch': 1000,
         'validation_split': 0.2,
         # 'optimizer': 'adam',
         'lr': 0.001,

@@ -86,9 +86,9 @@ class CodeSearcher:
         data_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size,
                                                   shuffle=True, drop_last=True, num_workers=1)
 
-        for itr, epoch in enumerate(range(self.model_params['reload'] + 1, nb_epoch), start=1):
+        for epoch in range(self.model_params['reload'] + 1, nb_epoch):
             losses = []
-            for names, apis, toks, good_descs, bad_descs in data_loader:
+            for itr, (names, apis, toks, good_descs, bad_descs) in enumerate(data_loader, start=1):
                 names, apis, toks, good_descs, bad_descs = gVar(names), gVar(apis), gVar(toks), gVar(good_descs), gVar(
                     bad_descs)
                 loss = model(names, apis, toks, good_descs, bad_descs)
