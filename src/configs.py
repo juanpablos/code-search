@@ -46,10 +46,10 @@ def get_config():
             'top1': 0.4,
         },
         'log_every': 100,
-        'save_every': 5,
+        'save_every': 1,
         'reload': -1,  # 970,#epoch that the model is reloaded from . If reload=0, then train from scratch
 
-        'model_name': "java_cs",
+        'model_name': "java_cs128",
 
         # model_params
         'emb_size': 100,

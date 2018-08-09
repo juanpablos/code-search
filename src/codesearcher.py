@@ -11,10 +11,10 @@ import torch
 import torch.nn.functional as F
 from torch import optim
 
-from src.configs import get_config
-from src.data import load_dict, CodeSearchDataset, load_vecs, save_vecs
-from src.models import JointEmbeder
-from src.utils import normalize, dot_np, gVar, sent2indexes
+from configs import get_config
+from data import load_dict, CodeSearchDataset, load_vecs, save_vecs
+from models import JointEmbeder
+from utils import normalize, dot_np, gVar, sent2indexes
 
 random.seed(42)
 logger = logging.getLogger(__name__)
@@ -84,7 +84,7 @@ class CodeSearcher:
                                       self.model_params['train_desc'], self.model_params['desc_len'])
 
         data_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size,
-                                                  shuffle=True, drop_last=True, num_workers=1)
+                                                  shuffle=True, drop_last=True, num_workers=1, pin_memory=True)
 
         for epoch in range(self.model_params['reload'] + 1, nb_epoch):
             losses = []
