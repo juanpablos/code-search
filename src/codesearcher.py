@@ -18,7 +18,14 @@ from .utils import normalize, dot_np, gVar, sent2indexes
 
 random.seed(42)
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(message)s", filename="train.log", filemode="w")
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(message)s", filename="train.log")
+
+console = logging.StreamHandler()
+console.setLevel(logging.INFO)
+
+formatter = logging.Formatter('%(message)s')
+console.setFormatter(formatter)
+logger.addHandler(console)
 
 
 class CodeSearcher:
@@ -169,7 +176,8 @@ class CodeSearcher:
                                       self.model_params['valid_name'], self.model_params['name_len'],
                                       self.model_params['valid_api'], self.model_params['api_len'],
                                       self.model_params['valid_tokens'], self.model_params['tokens_len'],
-                                      self.model_params['valid_desc'], self.model_params['desc_len'])
+                                      self.model_params['valid_desc'], self.model_params['desc_len'],
+                                      load_in_memory=True)
 
         data_loader = torch.utils.data.DataLoader(dataset=valid_set, batch_size=poolsize,
                                                   shuffle=True, drop_last=True, num_workers=1)
@@ -211,7 +219,8 @@ class CodeSearcher:
                                     self.model_params['use_tokens'], self.model_params['tokens_len'])
 
         data_loader = torch.utils.data.DataLoader(dataset=use_set, batch_size=1000,
-                                                  shuffle=False, drop_last=False, num_workers=1)
+                                                  shuffle=False, drop_last=False, num_workers=1,
+                                                  load_in_memory=True)
         for names, apis, toks in data_loader:
             names, apis, toks = gVar(names), gVar(apis), gVar(toks)
             reprs = model.code_encoding(names, apis, toks).data.cpu().numpy()

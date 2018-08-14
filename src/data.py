@@ -25,7 +25,7 @@ class CodeSearchDataset(data.Dataset):
 
         load = tables.open_file
         if load_in_memory:
-            load = partial(load, driver="H5FD_CORE")
+            load = partial(load, driver="H5FD_CORE", driver_core_backing_store=0)
 
         self.name_len = name_len
         self.api_len = api_len
