@@ -34,7 +34,7 @@ def get_config():
 
         # training_params
         'batch_size': 128,
-        'chunk_size': 100000,
+        'chunk_size': 200000,
         'nb_epoch': 1000,
         'validation_split': 0.2,
         # 'optimizer': 'adam',
@@ -46,10 +46,10 @@ def get_config():
             'top1': 0.4,
         },
         'log_every': 100,
-        'save_every': 1,
-        'reload': -1,  # 970,#epoch that the model is reloaded from . If reload=0, then train from scratch
+        'save_every': 5,
+        'reload': 30,  # epoch that the model is reloaded from . If reload=0, then train from scratch
 
-        'model_name': "java_cs128",
+        'model_name': "java_cs",
 
         # model_params
         'emb_size': 100,

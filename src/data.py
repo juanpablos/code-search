@@ -1,5 +1,6 @@
 import pickle
 import random
+from functools import partial
 
 import numpy as np
 import tables
@@ -20,7 +21,12 @@ class CodeSearchDataset(data.Dataset):
     """
 
     def __init__(self, data_dir, f_name, name_len, f_api, api_len,
-                 f_tokens, tok_len, f_descs=None, desc_len=None):
+                 f_tokens, tok_len, f_descs=None, desc_len=None, load_in_memory=False):
+
+        load = tables.open_file
+        if load_in_memory:
+            load = partial(load, driver="H5FD_CORE")
+
         self.name_len = name_len
         self.api_len = api_len
         self.tok_len = tok_len
@@ -29,18 +35,18 @@ class CodeSearchDataset(data.Dataset):
         """read training data(list of int arrays) from a hdf5 file"""
         self.training = False
         print("loading data...")
-        table_name = tables.open_file(data_dir + f_name)
+        table_name = load(data_dir + f_name)
         self.names = table_name.get_node('/phrases')
         self.idx_names = table_name.get_node('/indices')
-        table_api = tables.open_file(data_dir + f_api)
+        table_api = load(data_dir + f_api)
         self.apis = table_api.get_node('/phrases')
         self.idx_apis = table_api.get_node('/indices')
-        table_tokens = tables.open_file(data_dir + f_tokens)
+        table_tokens = load(data_dir + f_tokens)
         self.tokens = table_tokens.get_node('/phrases')
         self.idx_tokens = table_tokens.get_node('/indices')
         if f_descs is not None:
             self.training = True
-            table_desc = tables.open_file(data_dir + f_descs)
+            table_desc = load(data_dir + f_descs)
             self.descs = table_desc.get_node('/phrases')
             self.idx_descs = table_desc.get_node('/indices')
 

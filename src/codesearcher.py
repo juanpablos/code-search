@@ -11,14 +11,14 @@ import torch
 import torch.nn.functional as F
 from torch import optim
 
-from configs import get_config
-from data import load_dict, CodeSearchDataset, load_vecs, save_vecs
-from models import JointEmbeder
-from utils import normalize, dot_np, gVar, sent2indexes
+from .configs import get_config
+from .data import load_dict, CodeSearchDataset, load_vecs, save_vecs
+from .models import JointEmbeder
+from .utils import normalize, dot_np, gVar, sent2indexes
 
 random.seed(42)
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO, format="%(message)s")
+logging.basicConfig(level=logging.INFO, format="%(message)s", filename="train.log", filemode="w")
 
 
 class CodeSearcher:
@@ -33,7 +33,7 @@ class CodeSearcher:
 
         self.codevecs = []
         self.codebase = []
-        self.codebase_chunksize = 2000000
+        self.codebase_chunksize = conf['chunk_size']
 
     # Data Set
     def load_codebase(self):
@@ -81,7 +81,8 @@ class CodeSearcher:
                                       self.model_params['train_name'], self.model_params['name_len'],
                                       self.model_params['train_api'], self.model_params['api_len'],
                                       self.model_params['train_tokens'], self.model_params['tokens_len'],
-                                      self.model_params['train_desc'], self.model_params['desc_len'])
+                                      self.model_params['train_desc'], self.model_params['desc_len'],
+                                      load_in_memory=True)
 
         data_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size,
                                                   shuffle=True, drop_last=True, num_workers=1, pin_memory=True)
