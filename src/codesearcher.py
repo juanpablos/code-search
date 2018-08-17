@@ -92,7 +92,7 @@ class CodeSearcher:
                                       load_in_memory=True)
 
         data_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size,
-                                                  shuffle=True, drop_last=True, num_workers=1, pin_memory=True)
+                                                  shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
 
         for epoch in range(self.model_params['reload'] + 1, nb_epoch):
             losses = []
@@ -180,7 +180,7 @@ class CodeSearcher:
                                       load_in_memory=True)
 
         data_loader = torch.utils.data.DataLoader(dataset=valid_set, batch_size=poolsize,
-                                                  shuffle=True, drop_last=True, num_workers=1)
+                                                  shuffle=True, drop_last=True, num_workers=1, pin_memory=True)
 
         _acc, _mrr, _map, _ndcg = 0, 0, 0, 0
         n_pools = 0
@@ -212,20 +212,25 @@ class CodeSearcher:
 
     # Compute Representation
     def repr_code(self, model):
-        vecs = None
+        logging.info("Start Code Representation")
         use_set = CodeSearchDataset(self.model_params['workdir'],
                                     self.model_params['use_names'], self.model_params['name_len'],
                                     self.model_params['use_apis'], self.model_params['api_len'],
-                                    self.model_params['use_tokens'], self.model_params['tokens_len'])
+                                    self.model_params['use_tokens'], self.model_params['tokens_len'],
+                                    load_in_memory=True)
 
         data_loader = torch.utils.data.DataLoader(dataset=use_set, batch_size=1000,
-                                                  shuffle=False, drop_last=False, num_workers=1,
-                                                  load_in_memory=True)
-        for names, apis, toks in data_loader:
+                                                  shuffle=False, drop_last=False, num_workers=4, pin_memory=True)
+
+        vecs = None
+        for itr, (names, apis, toks) in enumerate(data_loader, start=1):
             names, apis, toks = gVar(names), gVar(apis), gVar(toks)
-            reprs = model.code_encoding(names, apis, toks).data.cpu().numpy()
-            vecs = reprs if vecs is None else np.concatenate((vecs, reprs), 0)
-        vecs = normalize(vecs)
+            reprs = model.code_encoding(names, apis, toks)
+            vecs = reprs if vecs is None else torch.cat((vecs, reprs), 0)
+            if itr % 100 == 0:
+                logger.info('itr:{}/{}'.format(itr, len(use_set)))
+        logger.info("Normalizing...")
+        vecs = normalize(vecs.data.cpu().numpy())
         save_vecs(vecs, self.path + self.model_params['use_codevecs'])
         return vecs
 
