@@ -18,7 +18,7 @@ def get_config():
         'use_apis': 'use.apiseq.h5',
         'use_tokens': 'use.tokens.h5',
         # results data(code vectors)
-        'use_codevecs': 'use.codevecs2.normalized.h5',  # 'use.codevecs.h5',
+        'use_codevecs': 'use.codevecs.h5',  # 'use.codevecs.h5', 'use.codevecs.normalized.h5'
 
         # parameters
         'name_len': 6,

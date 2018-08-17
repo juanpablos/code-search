@@ -211,26 +211,26 @@ class CodeSearcher:
         return _acc, _mrr, _map, _ndcg
 
     # Compute Representation
-    def repr_code(self, model):
+    def repr_code(self, model, norm=True):
         logging.info("Start Code Representation")
         use_set = CodeSearchDataset(self.model_params['workdir'],
                                     self.model_params['use_names'], self.model_params['name_len'],
                                     self.model_params['use_apis'], self.model_params['api_len'],
-                                    self.model_params['use_tokens'], self.model_params['tokens_len'],
-                                    load_in_memory=True)
+                                    self.model_params['use_tokens'], self.model_params['tokens_len'])
 
         data_loader = torch.utils.data.DataLoader(dataset=use_set, batch_size=1000,
-                                                  shuffle=False, drop_last=False, num_workers=4, pin_memory=True)
+                                                  shuffle=False, drop_last=False, num_workers=1)
 
         vecs = None
         for itr, (names, apis, toks) in enumerate(data_loader, start=1):
             names, apis, toks = gVar(names), gVar(apis), gVar(toks)
-            reprs = model.code_encoding(names, apis, toks)
-            vecs = reprs if vecs is None else torch.cat((vecs, reprs), 0)
+            reprs = model.code_encoding(names, apis, toks).data.cpu().numpy()
+            vecs = reprs if vecs is None else np.concatenate((vecs, reprs), 0)
             if itr % 100 == 0:
-                logger.info('itr:{}/{}'.format(itr, len(use_set)))
+                logger.info('itr:{}/{}'.format(itr, len(use_set) / 1000))
         logger.info("Normalizing...")
-        vecs = normalize(vecs.data.cpu().numpy())
+        if norm:
+            vecs = normalize(vecs)
         save_vecs(vecs, self.path + self.model_params['use_codevecs'])
         return vecs
 
