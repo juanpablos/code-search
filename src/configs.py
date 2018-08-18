@@ -34,7 +34,7 @@ def get_config():
 
         # training_params
         'batch_size': 128,
-        'chunk_size': 200000,
+        'chunk_size': 2000000,
         'nb_epoch': 1000,
         'validation_split': 0.2,
         # 'optimizer': 'adam',

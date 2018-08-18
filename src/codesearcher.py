@@ -1,5 +1,4 @@
 import argparse
-import codecs
 import logging
 import math
 import os
@@ -18,7 +17,7 @@ from .utils import normalize, dot_np, gVar, sent2indexes
 
 random.seed(42)
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(message)s", filename="train.log")
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(message)s", filename="logger.log")
 
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
@@ -45,22 +44,27 @@ class CodeSearcher:
     # Data Set
     def load_codebase(self):
         """load codebase
-        codefile: h5 file that stores raw code
+        codefile: file that stores raw code
         """
-        logger.info('Loading codebase (chunk size={})..'.format(self.codebase_chunksize))
+        logger.info('Loading codebase (chunk size={})'.format(self.codebase_chunksize))
         if not self.codebase:  # empty
-            codes = codecs.open(self.path + self.model_params['use_codebase']).readlines()
-            # use codecs to read in case of encoding problem
-            for i in range(0, len(codes), self.codebase_chunksize):
-                self.codebase.append(codes[i:i + self.codebase_chunksize])
+            # TODO: there are some weird encoding issues so just ignore them for now
+            with open(self.path + self.model_params['use_codebase'], errors='ignore') as f:
+                codes = f.readlines()
+                logging.debug("Loading codebase: {} groups".format(len(codes) // self.codebase_chunksize))
+                for i in range(0, len(codes), self.codebase_chunksize):
+                    logging.debug("loading [{}/{}]".format(i, len(codes) // self.codebase_chunksize))
+                    self.codebase.append(codes[i:i + self.codebase_chunksize])
 
     # Results Data
     def load_codevecs(self):
+        """read vectors (2D numpy array) from a hdf5 file"""
         logger.debug('Loading code vectors..')
         if not self.codevecs:  # empty
-            """read vectors (2D numpy array) from a hdf5 file"""
             reprs = load_vecs(self.path + self.model_params['use_codevecs'])
+            logging.debug("Loading codevecs: {} groups".format(len(reprs) // self.codebase_chunksize))
             for i in range(0, reprs.shape[0], self.codebase_chunksize):
+                logging.debug("loading [{}/{}]".format(i, len(reprs) // self.codebase_chunksize))
                 self.codevecs.append(reprs[i:i + self.codebase_chunksize])
 
     # Model Loading / saving
@@ -94,6 +98,7 @@ class CodeSearcher:
         data_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size,
                                                   shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
 
+        # TODO: generate an epoch loss to monitor training
         for epoch in range(self.model_params['reload'] + 1, nb_epoch):
             losses = []
             for itr, (names, apis, toks, good_descs, bad_descs) in enumerate(data_loader, start=1):
@@ -221,16 +226,23 @@ class CodeSearcher:
         data_loader = torch.utils.data.DataLoader(dataset=use_set, batch_size=1000,
                                                   shuffle=False, drop_last=False, num_workers=1)
 
-        vecs = None
+        vecs = []
+        logging.debug("Calculating code vectors")
         for itr, (names, apis, toks) in enumerate(data_loader, start=1):
             names, apis, toks = gVar(names), gVar(apis), gVar(toks)
             reprs = model.code_encoding(names, apis, toks).data.cpu().numpy()
-            vecs = reprs if vecs is None else np.concatenate((vecs, reprs), 0)
+            vecs.append(reprs)
             if itr % 100 == 0:
-                logger.info('itr:{}/{}'.format(itr, len(use_set) / 1000))
-        logger.info("Normalizing...")
+                logger.info('itr:{}/{}'.format(itr, len(use_set) // 1000))
+
+        logging.debug("Concatenating all vectors")
+        vecs = np.concatenate(vecs, 0)
+
         if norm:
+            logger.debug("Normalizing...")
             vecs = normalize(vecs)
+
+        logging.debug("Writing to disk -  vectors")
         save_vecs(vecs, self.path + self.model_params['use_codevecs'])
         return vecs
 
@@ -244,13 +256,22 @@ class CodeSearcher:
         sims = []
         threads = []
         for i, codevecs_chunk in enumerate(self.codevecs):
+            # select the best n_results from each chunk
             t = threading.Thread(target=self.search_thread, args=(codes, sims, desc_repr, codevecs_chunk, i, n_results))
             threads.append(t)
         for t in threads:
             t.start()
         for t in threads:  # wait until all sub-threads finish
             t.join()
-        return codes, sims
+
+        # filter each chunk result and get the top n_results results
+        negsims = np.negative(sims)
+        maxinds = np.argpartition(negsims, kth=n_results - 1)
+        maxinds = maxinds[:n_results]
+        best_snippets = [(sims[k], codes[k]) for k in maxinds]
+        best_snippets.sort(reverse=True)
+
+        return best_snippets
 
     def search_thread(self, codes, sims, desc_repr, codevecs, i, n_results):
         # 1. compute code similarities
@@ -294,28 +315,33 @@ if __name__ == '__main__':
     optimizer = optim.Adam(_model.parameters(), lr=conf['lr'])
 
     if args.mode == 'train':
+        logging.info("Start Training")
         searcher.train(_model)
 
     elif args.mode == 'eval':
+        logging.info("Start eval")
         # evaluate for a particular epoch
         searcher.eval(_model, 1000, 10)
 
     elif args.mode == 'repr_code':
+        logging.info("Start code representation")
         searcher.repr_code(_model)
 
     elif args.mode == 'search':
+        logging.info("Start Searching")
         # search code based on a desc
         searcher.load_codevecs()
         searcher.load_codebase()
         while True:
             try:
+                print("-" * 20)
                 _query = input('Input Query: ')
                 number_results = int(input('How many results? '))
             except Exception as e:
                 print("Exception while parsing your input:")
                 print(e)
                 break
-            snippets, sims = searcher.search(_model, _query, number_results)
-            zipped = zip(snippets, sims)
-            results = '\n\n'.join(map(str, zipped))  # combine the result into a returning string
+            snippets = searcher.search(_model, _query, number_results)
+            results = '\n\n'.join(map(str, snippets))  # combine the result into a returning string
             print(results)
+            print("-" * 20)
