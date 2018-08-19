@@ -221,10 +221,11 @@ class CodeSearcher:
         use_set = CodeSearchDataset(self.model_params['workdir'],
                                     self.model_params['use_names'], self.model_params['name_len'],
                                     self.model_params['use_apis'], self.model_params['api_len'],
-                                    self.model_params['use_tokens'], self.model_params['tokens_len'])
+                                    self.model_params['use_tokens'], self.model_params['tokens_len'],
+                                    load_in_memory=True)
 
         data_loader = torch.utils.data.DataLoader(dataset=use_set, batch_size=1000,
-                                                  shuffle=False, drop_last=False, num_workers=1)
+                                                  shuffle=False, drop_last=False, num_workers=2, pin_memory=True)
 
         vecs = []
         logging.debug("Calculating code vectors")
