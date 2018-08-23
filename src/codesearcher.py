@@ -253,28 +253,23 @@ class CodeSearcher:
         desc = gVar(desc)
         desc_repr = model.desc_encoding(desc).data.cpu().numpy()
 
-        codes = []
-        sims = []
+        valued = []
         threads = []
         for i, codevecs_chunk in enumerate(self.codevecs):
             # select the best n_results from each chunk
-            t = threading.Thread(target=self.search_thread, args=(codes, sims, desc_repr, codevecs_chunk, i, n_results))
+            t = threading.Thread(target=self.search_thread,
+                                 args=(valued, desc_repr, codevecs_chunk, i, n_results))
             threads.append(t)
         for t in threads:
             t.start()
         for t in threads:  # wait until all sub-threads finish
             t.join()
 
-        # filter each chunk result and get the top n_results results
-        negsims = np.negative(sims)
-        maxinds = np.argpartition(negsims, kth=n_results - 1)
-        maxinds = maxinds[:n_results]
-        best_snippets = [(sims[k], codes[k]) for k in maxinds]
-        best_snippets.sort(reverse=True)
+        valued.sort(reverse=True)
 
-        return best_snippets
+        return valued[:n_results]
 
-    def search_thread(self, codes, sims, desc_repr, codevecs, i, n_results):
+    def search_thread(self, valued, desc_repr, codevecs, i, n_results):
         # 1. compute code similarities
         chunk_sims = dot_np(normalize(desc_repr), codevecs)
 
@@ -282,10 +277,7 @@ class CodeSearcher:
         negsims = np.negative(chunk_sims[0])
         maxinds = np.argpartition(negsims, kth=n_results - 1)
         maxinds = maxinds[:n_results]
-        chunk_codes = [self.codebase[i][k] for k in maxinds]
-        chunk_sims = chunk_sims[0][maxinds]
-        codes.extend(chunk_codes)
-        sims.extend(chunk_sims)
+        valued.extend((chunk_sims[0][k], self.codebase[i][k]) for k in maxinds)
 
 
 def parse_args():

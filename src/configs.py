@@ -18,7 +18,7 @@ def get_config():
         'use_apis': 'use.apiseq.h5',
         'use_tokens': 'use.tokens.h5',
         # results data(code vectors)
-        'use_codevecs': 'use.codevecs.h5',  # 'use.codevecs.h5', 'use.codevecs.normalized.h5'
+        'use_codevecs': 'use.codevecs85.normalized.h5',  # 'use.codevecs.h5', 'use.codevecs.normalized.h5'
 
         # parameters
         'name_len': 6,
@@ -47,7 +47,7 @@ def get_config():
         },
         'log_every': 100,
         'save_every': 5,
-        'reload': 50,  # epoch that the model is reloaded from . If reload=0, then train from scratch
+        'reload': 85,  # epoch that the model is reloaded from . If reload=0, then train from scratch
 
         'model_name': "java_cs",
 
