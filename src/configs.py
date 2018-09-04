@@ -18,7 +18,7 @@ def get_config():
         'use_apis': 'use.apiseq.h5',
         'use_tokens': 'use.tokens.h5',
         # results data(code vectors)
-        'use_codevecs': 'use.codevecs85.normalized.h5',  # 'use.codevecs.h5', 'use.codevecs.normalized.h5'
+        'use_codevecs': 'use.codevecs100.normalized.h5',  # 'use.codevecs.h5', 'use.codevecs.normalized.h5'
 
         # parameters
         'name_len': 6,
@@ -33,7 +33,7 @@ def get_config():
         'vocab_desc': 'vocab.desc.pkl',
 
         # training_params
-        'batch_size': 128,
+        'batch_size': 512,
         'chunk_size': 2000000,
         'nb_epoch': 1000,
         'validation_split': 0.2,
@@ -47,9 +47,9 @@ def get_config():
         },
         'log_every': 100,
         'save_every': 5,
-        'reload': 85,  # epoch that the model is reloaded from . If reload=0, then train from scratch
+        'reload': 100,  # epoch that the model is reloaded from . If reload=0, then train from scratch
 
-        'model_name': "java_cs",
+        'model_name': "java_cs512",
 
         # model_params
         'emb_size': 100,

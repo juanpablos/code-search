@@ -10,14 +10,14 @@ import torch
 import torch.nn.functional as F
 from torch import optim
 
-from .configs import get_config
-from .data import load_dict, CodeSearchDataset, load_vecs, save_vecs
-from .models import JointEmbeder
-from .utils import normalize, dot_np, gVar, sent2indexes
+from configs import get_config
+from data import load_dict, CodeSearchDataset, load_vecs, save_vecs
+from models import JointEmbeder
+from utils import normalize, dot_np, gVar, sent2indexes
 
 random.seed(42)
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(message)s", filename="logger.log")
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(message)s", filename="logger.debug.log")
 
 console = logging.StreamHandler()
 console.setLevel(logging.INFO)
@@ -53,7 +53,7 @@ class CodeSearcher:
                 codes = f.readlines()
                 logging.debug("Loading codebase: {} groups".format(len(codes) // self.codebase_chunksize))
                 for i in range(0, len(codes), self.codebase_chunksize):
-                    logging.debug("loading [{}/{}]".format(i, len(codes) // self.codebase_chunksize))
+                    logging.debug("loading [{}/{}]".format(i // self.codebase_chunksize, len(codes) // self.codebase_chunksize))
                     self.codebase.append(codes[i:i + self.codebase_chunksize])
 
     # Results Data
@@ -104,7 +104,7 @@ class CodeSearcher:
             for itr, (names, apis, toks, good_descs, bad_descs) in enumerate(data_loader, start=1):
                 names, apis, toks, good_descs, bad_descs = gVar(names), gVar(apis), gVar(toks), gVar(good_descs), gVar(
                     bad_descs)
-                loss = model(names, apis, toks, good_descs, bad_descs)
+                loss = model.train()(names, apis, toks, good_descs, bad_descs)
                 losses.append(loss.item())
                 optimizer.zero_grad()
                 loss.backward()
@@ -192,10 +192,10 @@ class CodeSearcher:
         for names, apis, toks, descs, _ in data_loader:
             n_pools += 1
             names, apis, toks = gVar(names), gVar(apis), gVar(toks)
-            code_repr = model.code_encoding(names, apis, toks)
+            code_repr = model.eval().code_encoding(names, apis, toks)
             for it in range(poolsize):
                 desc = gVar(descs[it].expand(poolsize, -1))
-                desc_repr = model.desc_encoding(desc)
+                desc_repr = model.eval().desc_encoding(desc)
                 n_results = K
                 sims = F.cosine_similarity(code_repr, desc_repr).data.cpu().numpy()
                 negsims = np.negative(sims)
@@ -231,7 +231,7 @@ class CodeSearcher:
         logging.debug("Calculating code vectors")
         for itr, (names, apis, toks) in enumerate(data_loader, start=1):
             names, apis, toks = gVar(names), gVar(apis), gVar(toks)
-            reprs = model.code_encoding(names, apis, toks).data.cpu().numpy()
+            reprs = model.eval().code_encoding(names, apis, toks).data.cpu().numpy()
             vecs.append(reprs)
             if itr % 100 == 0:
                 logger.info('itr:{}/{}'.format(itr, len(use_set) // 1000))
@@ -249,9 +249,13 @@ class CodeSearcher:
 
     def search(self, model, query, n_results=10):
         desc = sent2indexes(query, self.vocab_desc)  # convert desc sentence into word indices
+        logger.debug("Description representation")
+        logger.debug(desc)
         desc = np.expand_dims(desc, axis=0)
         desc = gVar(desc)
-        desc_repr = model.desc_encoding(desc).data.cpu().numpy()
+        logger.debug("Description embedding")
+        desc_repr = model.eval().desc_encoding(desc).data.cpu().numpy()
+        logger.debug(desc_repr)
 
         valued = []
         threads = []
@@ -267,6 +271,8 @@ class CodeSearcher:
 
         valued.sort(reverse=True)
 
+        logger.debug(valued)
+
         return valued[:n_results]
 
     def search_thread(self, valued, desc_repr, codevecs, i, n_results):
@@ -277,6 +283,8 @@ class CodeSearcher:
         negsims = np.negative(chunk_sims[0])
         maxinds = np.argpartition(negsims, kth=n_results - 1)
         maxinds = maxinds[:n_results]
+        logger.debug("max inds")
+        logger.debug(maxinds)
         valued.extend((chunk_sims[0][k], self.codebase[i][k]) for k in maxinds)
 
 
