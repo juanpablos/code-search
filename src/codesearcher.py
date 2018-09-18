@@ -203,7 +203,7 @@ class CodeSearcher:
                 prediction = np.argpartition(negsims, kth=n_results - 1)
                 prediction = prediction[:n_results]
                 # sort the codes by their sim, simulate a ranking
-                prediction = [y for _, y in sorted(zip(negsims, prediction))]
+                prediction = [y for _, y in sorted(zip(negsims[prediction], prediction))]
                 real_value = [it]
                 accs.append(ACC(real_value, prediction))
                 mrrs.append(MRR(real_value, prediction))
