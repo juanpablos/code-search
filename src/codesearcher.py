@@ -17,6 +17,9 @@ from models import JointEmbeder
 from utils import normalize, dot_np, gVar, sent2indexes
 
 random.seed(42)
+torch.manual_seed(42)
+np.random.seed(42)
+
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG, format="%(asctime)s %(message)s", filename="logger.debug.log")
 
@@ -197,7 +200,7 @@ class CodeSearcher:
                 n_results = K
                 sims = F.cosine_similarity(code_repr, desc_repr).data.cpu().numpy()
                 negsims = np.negative(sims)
-                prediction = np.argpartition(negsims, kth=n_results-1)
+                prediction = np.argpartition(negsims, kth=n_results - 1)
                 prediction = prediction[:n_results]
                 # sort the codes by their sim, simulate a ranking
                 prediction = [y for _, y in sorted(zip(negsims, prediction))]
