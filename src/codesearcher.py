@@ -202,9 +202,10 @@ class CodeSearcher:
                 n_results = K
                 sims = F.cosine_similarity(code_repr, desc_repr).data.cpu().numpy()
                 negsims = np.negative(sims)
-                prediction = np.argsort(negsims)  # predict = np.argpartition(negsims, kth=n_results-1)
+                prediction = np.argpartition(negsims, kth=n_results-1)
                 prediction = prediction[:n_results]
-                prediction = [int(k) for k in prediction]
+                # sort the codes by their sim, simulate a ranking
+                prediction = [y for _, y in sorted(zip(negsims, prediction))]
                 real_value = [it]
                 accs.append(ACC(real_value, prediction))
                 mrrs.append(MRR(real_value, prediction))
@@ -300,6 +301,7 @@ def parse_args():
                              " the `eval` mode evaluate models in a test set "
                              " The `repr_code/repr_desc` mode computes vectors"
                              " for a code snippet or a natural language description with a trained model.")
+    parser.add_argument("-n", "--num", type=int, default=10)
     parser.add_argument("--verbose", action="store_true", default=True, help="Be verbose")
     return parser.parse_args()
 
@@ -327,7 +329,7 @@ if __name__ == '__main__':
     elif args.mode == 'eval':
         logging.info("Start eval")
         # evaluate for a particular epoch
-        searcher.eval(_model, 1000, 10)
+        searcher.eval(_model, 10000, args.num)
 
     elif args.mode == 'repr_code':
         logging.info("Start code representation")
