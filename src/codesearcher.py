@@ -101,7 +101,6 @@ class CodeSearcher:
         data_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size,
                                                   shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
 
-        # TODO: generate an epoch loss to monitor training
         for epoch in range(self.model_params['reload'] + 1, nb_epoch):
             epoch_loss = []
             losses = []
@@ -124,7 +123,7 @@ class CodeSearcher:
             logger.info('[SUMMARY] epo:[{}/{}] Loss={:.5f}'.format(epoch, nb_epoch, np.mean(epoch_loss)))
 
     # Evaluation
-    def eval(self, model, poolsize, K):
+    def eval(self, model, poolsize, K, test_all=True):
         """
         simple validation in a code pool.
         @param: poolsize - size of the code pool, if -1, load the whole test set
@@ -133,34 +132,30 @@ class CodeSearcher:
         def ACC(real, predict):
             _sum = 0.0
             for val in real:
-                try:
-                    predict.index(val)
-                except ValueError:
-                    continue
-                else:
-                    _sum = _sum + 1
+                if val in predict:
+                    _sum += 1
             return _sum / float(len(real))
 
         def MAP(real, predict):
             _sum = 0.0
-            for _id, val in enumerate(real):
+            for _id, val in enumerate(real, start=1):
                 try:
-                    index = predict.index(val)
+                    index = predict.index(val) + 1
                 except ValueError:
                     continue
                 else:
-                    _sum = _sum + (_id + 1) / float(index + 1)
+                    _sum += _id / float(index)
             return _sum / float(len(real))
 
         def MRR(real, predict):
             _sum = 0.0
             for val in real:
                 try:
-                    index = predict.index(val)
+                    index = predict.index(val) + 1
                 except ValueError:
                     continue
                 else:
-                    _sum = _sum + 1.0 / float(index + 1)
+                    _sum += 1.0 / float(index)
             return _sum / float(len(real))
 
         def NDCG(real, predict):
@@ -190,7 +185,7 @@ class CodeSearcher:
                                                     load_in_memory=True)
 
         data_loader = torch.utils.data.DataLoader(dataset=self.validation_set, batch_size=poolsize,
-                                                  shuffle=True, drop_last=True, num_workers=1, pin_memory=True)
+                                                  shuffle=False, drop_last=True, num_workers=1, pin_memory=True)
 
         accs, mrrs, maps, ndcgs = [], [], [], []
         for names, apis, toks, descs, _ in tqdm(data_loader):
