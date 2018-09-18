@@ -9,6 +9,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch import optim
+from tqdm import tqdm
 
 from configs import get_config
 from data import load_dict, CodeSearchDataset, load_vecs, save_vecs
@@ -41,6 +42,8 @@ class CodeSearcher:
         self.codebase = []
         self.codebase_chunksize = conf['chunk_size']
 
+        self.validation_set = None
+
     # Data Set
     def load_codebase(self):
         """load codebase
@@ -53,7 +56,8 @@ class CodeSearcher:
                 codes = f.readlines()
                 logging.debug("Loading codebase: {} groups".format(len(codes) // self.codebase_chunksize))
                 for i in range(0, len(codes), self.codebase_chunksize):
-                    logging.debug("loading [{}/{}]".format(i // self.codebase_chunksize, len(codes) // self.codebase_chunksize))
+                    logging.debug(
+                        "loading [{}/{}]".format(i // self.codebase_chunksize, len(codes) // self.codebase_chunksize))
                     self.codebase.append(codes[i:i + self.codebase_chunksize])
 
     # Results Data
@@ -83,7 +87,6 @@ class CodeSearcher:
     # Training
     def train(self, model):
         log_every = self.model_params['log_every']
-        valid_every = self.model_params['valid_every']
         save_every = self.model_params['save_every']
         batch_size = self.model_params['batch_size']
         nb_epoch = self.model_params['nb_epoch']
@@ -100,12 +103,14 @@ class CodeSearcher:
 
         # TODO: generate an epoch loss to monitor training
         for epoch in range(self.model_params['reload'] + 1, nb_epoch):
+            epoch_loss = []
             losses = []
             for itr, (names, apis, toks, good_descs, bad_descs) in enumerate(data_loader, start=1):
                 names, apis, toks, good_descs, bad_descs = gVar(names), gVar(apis), gVar(toks), gVar(good_descs), gVar(
                     bad_descs)
                 loss = model.train()(names, apis, toks, good_descs, bad_descs)
                 losses.append(loss.item())
+                epoch_loss.append(loss.item())
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
@@ -113,11 +118,10 @@ class CodeSearcher:
                     logger.info('epo:[{}/{}] itr:{} Loss={:.5f}'.format(epoch, nb_epoch, itr, np.mean(losses)))
                     losses = []
 
-            if epoch and epoch % valid_every == 0:
-                self.eval(model, 1000, 1)
-
             if epoch and epoch % save_every == 0:
                 self.save_model_epoch(model, epoch)
+
+            logger.info('[SUMMARY] epo:[{}/{}] Loss={:.5f}'.format(epoch, nb_epoch, np.mean(epoch_loss)))
 
     # Evaluation
     def eval(self, model, poolsize, K):
@@ -130,10 +134,10 @@ class CodeSearcher:
             _sum = 0.0
             for val in real:
                 try:
-                    index = predict.index(val)
+                    predict.index(val)
                 except ValueError:
-                    index = -1
-                if index != -1:
+                    continue
+                else:
                     _sum = _sum + 1
             return _sum / float(len(real))
 
@@ -143,8 +147,8 @@ class CodeSearcher:
                 try:
                     index = predict.index(val)
                 except ValueError:
-                    index = -1
-                if index != -1:
+                    continue
+                else:
                     _sum = _sum + (_id + 1) / float(index + 1)
             return _sum / float(len(real))
 
@@ -154,8 +158,8 @@ class CodeSearcher:
                 try:
                     index = predict.index(val)
                 except ValueError:
-                    index = -1
-                if index != -1:
+                    continue
+                else:
                     _sum = _sum + 1.0 / float(index + 1)
             return _sum / float(len(real))
 
@@ -177,20 +181,19 @@ class CodeSearcher:
             return idcg
 
         # load test dataset
-        valid_set = CodeSearchDataset(self.path,
-                                      self.model_params['valid_name'], self.model_params['name_len'],
-                                      self.model_params['valid_api'], self.model_params['api_len'],
-                                      self.model_params['valid_tokens'], self.model_params['tokens_len'],
-                                      self.model_params['valid_desc'], self.model_params['desc_len'],
-                                      load_in_memory=True)
+        if self.validation_set is None:
+            self.validation_set = CodeSearchDataset(self.path,
+                                                    self.model_params['valid_name'], self.model_params['name_len'],
+                                                    self.model_params['valid_api'], self.model_params['api_len'],
+                                                    self.model_params['valid_tokens'], self.model_params['tokens_len'],
+                                                    self.model_params['valid_desc'], self.model_params['desc_len'],
+                                                    load_in_memory=True)
 
-        data_loader = torch.utils.data.DataLoader(dataset=valid_set, batch_size=poolsize,
+        data_loader = torch.utils.data.DataLoader(dataset=self.validation_set, batch_size=poolsize,
                                                   shuffle=True, drop_last=True, num_workers=1, pin_memory=True)
 
-        _acc, _mrr, _map, _ndcg = 0, 0, 0, 0
-        n_pools = 0
-        for names, apis, toks, descs, _ in data_loader:
-            n_pools += 1
+        accs, mrrs, maps, ndcgs = [], [], [], []
+        for names, apis, toks, descs, _ in tqdm(data_loader):
             names, apis, toks = gVar(names), gVar(apis), gVar(toks)
             code_repr = model.eval().code_encoding(names, apis, toks)
             for it in range(poolsize):
@@ -203,17 +206,19 @@ class CodeSearcher:
                 prediction = prediction[:n_results]
                 prediction = [int(k) for k in prediction]
                 real_value = [it]
-                _acc += ACC(real_value, prediction)
-                _mrr += MRR(real_value, prediction)
-                _map += MAP(real_value, prediction)
-                _ndcg += NDCG(real_value, prediction)
-        _acc = _acc / n_pools / poolsize
-        _mrr = _mrr / n_pools / poolsize
-        _map = _map / n_pools / poolsize
-        _ndcg = _ndcg / n_pools / poolsize
-        logger.info('ACC={}, MRR={}, MAP={}, nDCG={}'.format(_acc, _mrr, _map, _ndcg))
+                accs.append(ACC(real_value, prediction))
+                mrrs.append(MRR(real_value, prediction))
+                maps.append(MAP(real_value, prediction))
+                ndcgs.append(NDCG(real_value, prediction))
 
-        return _acc, _mrr, _map, _ndcg
+        mean_acc = np.mean(accs)
+        mean_mrr = np.mean(mrrs)
+        mean_map = np.mean(maps)
+        mean_ndcg = np.mean(ndcgs)
+
+        logger.info('ACC={}, MRR={}, MAP={}, nDCG={}'.format(mean_acc, mean_mrr, mean_map, mean_ndcg))
+
+        return mean_acc, mean_mrr, mean_map, mean_ndcg
 
     # Compute Representation
     def repr_code(self, model, norm=True):
