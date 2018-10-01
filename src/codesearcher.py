@@ -254,12 +254,10 @@ class CodeSearcher:
     def search(self, model, query, n_results=10):
         desc = sent2indexes(query, self.vocab_desc)  # convert desc sentence into word indices
         logger.debug("Description representation")
-        logger.debug(desc)
         desc = np.expand_dims(desc, axis=0)
         desc = gVar(desc)
         logger.debug("Description embedding")
         desc_repr = model.eval().desc_encoding(desc).data.cpu().numpy()
-        logger.debug(desc_repr)
 
         valued = []
         threads = []
@@ -274,8 +272,6 @@ class CodeSearcher:
             t.join()
 
         valued.sort(reverse=True)
-
-        logger.debug(valued)
 
         return valued[:n_results]
 
