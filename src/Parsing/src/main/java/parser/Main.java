@@ -40,10 +40,10 @@ public class Main {
 
     private static void parseMethods(String commentFile, String methodNameFile, String apiFile, String tokenFile, File inputFile) {
 
-        try (Writer names = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(methodNameFile), StandardCharsets.UTF_8));
-             Writer apiCalls = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(apiFile), StandardCharsets.UTF_8));
-             Writer tokens = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(tokenFile), StandardCharsets.UTF_8));
-             Writer comments = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(commentFile), StandardCharsets.UTF_8));
+        try (Writer names = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(methodNameFile, true), StandardCharsets.UTF_8));
+             Writer apiCalls = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(apiFile, true), StandardCharsets.UTF_8));
+             Writer tokens = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(tokenFile, true), StandardCharsets.UTF_8));
+             Writer comments = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(commentFile, true), StandardCharsets.UTF_8));
              FileInputStream in = new FileInputStream(inputFile)) {
 
             CompilationUnit cu = JavaParser.parse(in);
