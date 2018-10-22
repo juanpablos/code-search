@@ -24,7 +24,7 @@ public class Main {
         String commentFile = "comments.txt";
 
         File startPath = new File(".");
-        for (File file : startPath.listFiles()) {
+        for (File file : Objects.requireNonNull(startPath.listFiles())) {
             if (file.isDirectory()) {
                 forEachJavaFile(file, commentFile, nameFile, apiFile, tokenFile);
             }
