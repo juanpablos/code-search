@@ -1,4 +1,16 @@
-method 1
-method 2
-method 3
-method 4
+main
+for each java file
+parse methods
+visit
+visit
+visit
+visit
+visit
+visit
+visit
+visit
+visit
+visit
+visit
+visit
+visit

@@ -1,4 +1,16 @@
-equals length hola chao aaaa
-size
-
-println stream foreach
+listFiles isDirectory forEachJavaFile
+listFiles parseMethods
+parse findAll getNameAsString splitByCharacterTypeCamelCase asList join toLowerCase write write getJavadoc isPresent write getJavadoc get getDescription toText split toLowerCase write write getBody isPresent write write getBody get getTokenRange isPresent write asString splitByCharacterTypeCamelCase asList addAll getKind getBody get getTokenRange get spliterator stream filter forEach join toLowerCase write write getBody get accept join write write println
+accept getArguments forEach accept getScope ifPresent getName accept accept forEach getTypeArguments ifPresent accept getComment ifPresent getName asString add
+getParameter accept getBody accept accept getComment ifPresent
+getBody accept getCondition accept accept getComment ifPresent
+getScope accept getName accept accept forEach getTypeArguments ifPresent accept getComment ifPresent
+getIterable accept getVariable accept getBody accept accept getComment ifPresent
+accept getInitialization forEach accept getCompare ifPresent accept getUpdate forEach getBody accept accept getComment ifPresent
+getSelector accept accept getEntries forEach accept getComment ifPresent
+getExpression accept getBody accept accept getComment ifPresent
+accept getResources forEach getTryBlock accept accept getCatchClauses forEach accept getFinallyBlock ifPresent accept getComment ifPresent
+getCondition accept getBody accept accept getComment ifPresent
+accept getParameters forEach getBody accept accept getComment ifPresent
+getScope accept accept forEach getTypeArguments ifPresent accept getComment ifPresent
+visit

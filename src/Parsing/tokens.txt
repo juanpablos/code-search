@@ -1,4 +1,16 @@
-a equals length string hola parameters chao aaaa
-size string
-array e list exception
-array foreach println stream list system out
+path each java start for is string list token file name comment api files file directory
+method string parse list directory name token file utils files list comment api files file methods
+all each lower compilation support utf javadoc token string unit body hash name input split find kind stream list api join write tokens add method character in spliterator io is method range parser accept line input sequence as 8 name arrays file charsets description set visitor for standard camel system case out as println stream output get tokens declaration present body buffered _ java comments e calls text parse exception token filter array cu type names t utils by comment api to writer first
+add each comment arguments for string l n accept name p type as scope v get arg present if
+comment get arg parameter present l body if n accept
+condition comment get arg present l body if n accept
+each comment arguments for l n accept name type scope v get arg present if
+comment variable iterable get arg present l body if n accept
+initialization each comment for l update n accept p get arg compare present if body
+each comment for entries l n accept p get arg present if selector
+comment expression get arg present l body if n accept
+each comment catch for l n accept p get arg block try resources present if clauses finally
+condition comment get arg present l body if n accept
+each comment parameters for l n accept p get arg present body if
+each comment arguments for l n accept type scope v get arg present if
+arg visit n
