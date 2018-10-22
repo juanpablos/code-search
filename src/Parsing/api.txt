@@ -1,0 +1,4 @@
+equals length hola chao aaaa
+size
+
+println stream foreach

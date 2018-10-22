@@ -1,0 +1,4 @@
+a equals length string hola parameters chao aaaa
+size string
+array e list exception
+array foreach println stream list system out

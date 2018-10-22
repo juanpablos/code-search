@@ -1,11 +1,13 @@
 import csv
 import logging
 import os
-import re
 import shutil
 import subprocess
 import sys
 from itertools import repeat
+
+# TODO: right now we select only the biggest SIVA file, this might be inaccurate
+# Best way would be to unpack every siva file for a repository, then compare their references and timestamps
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG, format="%(levelname)s %(asctime)s %(message)s", filename="logger.log")
@@ -50,9 +52,6 @@ while True:
 with open(index_file_path) as f:
     index = csv.reader(f)
 
-    head = re.compile("refs/heads/HEAD/.*")
-    master = re.compile("refs/heads/master/.*")
-
     for row in index:
         author = row[0].split('/')[-2]
         name = row[0].split('/')[-1]
@@ -92,33 +91,21 @@ with open(index_file_path) as f:
         os.chdir(repo_dir[:-5])
         # choose a head ref to checkout
         logger.debug("Calling show ref...")
-        refs = subprocess.run(["git", "show-ref"], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.decode()
+        newest_ref = subprocess.run(
+            ["git", "for-each-ref", "refs/heads", "--sort='-authordate'", "--count=1", "--format='%(refname)'"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.decode()
 
-        matches = head.findall(refs)
-        if not matches:
+        if not newest_ref:
             logger.debug("No HEAD matches")
-            matches = master.findall(refs)
-            if not matches:
-                logger.debug("No master matches")
-                try:
-                    matches = no_heads(refs)[-1]
-                except IndexError:
-                    matches = None
+            logger.debug("Falling back to any ref")
+            newest_ref = subprocess.run(
+                ["git", "for-each-ref", "--sort='-authordate'", "--count=1", "--format='%(refname)'"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.decode()
 
-        if not matches:
-            logger.error("No match for a head in {} {} with file {}".format(author, name, biggest_siva))
-            logger.debug("Changing dir to {}".format(wd))
-            os.chdir(wd)
-            logger.info("Cleaning created directory")
-            shutil.rmtree("{repo_path}/{author}/{name}/".format(repo_path=repos_path, author=author, name=name),
-                          ignore_errors=True)
-            continue
-
-        ref = matches[-1]
-        logger.debug("Newest head reference {}".format(ref))
+        logger.debug("Newest head reference {}".format(newest_ref))
         # git checkout ref
         logger.info("Checking out reference")
-        subprocess.run(["git", "checkout", ref], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(["git", "checkout", newest_ref], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
         logger.debug("Changing dir to {}".format(wd))
         os.chdir(wd)
