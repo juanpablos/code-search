@@ -30,9 +30,9 @@ def no_heads(references):
     return [i.split(" ")[-1] for i in references.split("\n")]
 
 
-siva_path = "../../../../Go/siva/latest"
-repos_path = siva_path + "/repos"
-index_file_path = "../data/index.csv"
+siva_path = "./siva/latest"
+repos_path = "./repos"
+index_file_path = "./index.csv"
 
 logger.debug("Making repo dir")
 os.makedirs(repos_path, exist_ok=True)
@@ -91,23 +91,32 @@ with open(index_file_path) as f:
         os.chdir(repo_dir[:-5])
         # choose a head ref to checkout
         logger.debug("Calling show ref...")
-        newest_ref = subprocess.run(
-            ["git", "for-each-ref", "refs/heads", "--sort='-authordate'", "--count=1", "--format='%(refname)'"],
-            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.decode()
-
-        if not newest_ref:
-            logger.debug("No HEAD matches")
-            logger.debug("Falling back to any ref")
+        try:
             newest_ref = subprocess.run(
-                ["git", "for-each-ref", "--sort='-authordate'", "--count=1", "--format='%(refname)'"],
-                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.decode()
+                ["git", "for-each-ref", "refs/heads", "--sort=-authordate", "--count=1", "--format='%(refname)'"],
+                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.decode('utf-8')
 
-        logger.debug("Newest head reference {}".format(newest_ref))
-        # git checkout ref
-        logger.info("Checking out reference")
-        subprocess.run(["git", "checkout", newest_ref], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            newest_ref = newest_ref.strip("\n'")
 
-        logger.debug("Changing dir to {}".format(wd))
-        os.chdir(wd)
-        logger.debug("Cleaning .git directory")
-        shutil.rmtree(repo_dir, ignore_errors=True)
+            if not newest_ref:
+                logger.debug("No HEAD matches")
+                logger.debug("Falling back to any ref")
+                newest_ref = subprocess.run(
+                    ["git", "for-each-ref", "--sort=-authordate", "--count=1", "--format='%(refname)'"],
+                    stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.decode('utf-8')
+                newest_ref = newest_ref.strip("\n'")
+
+        except Exception as e:
+            logger.critical("Error with the reference handling")
+            logger.critical("{}".format(e))
+            logger.critical("[] [] []".format(author, name, biggest_siva))
+        else:
+            logger.debug("Newest head reference {}".format(newest_ref))
+            # git checkout ref
+            logger.info("Checking out reference")
+            subprocess.run(["git", "checkout", newest_ref], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        finally:
+            logger.debug("Changing dir to {}".format(wd))
+            os.chdir(wd)
+            logger.debug("Cleaning .git directory")
+            shutil.rmtree(repo_dir, ignore_errors=True)
