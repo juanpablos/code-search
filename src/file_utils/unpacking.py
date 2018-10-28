@@ -99,10 +99,10 @@ with open(index_file_path) as f:
             if not newest_ref:
                 logger.debug("No HEAD matches")
                 logger.debug("Falling back to any ref")
+
                 newest_ref = subprocess.check_output(
                     ["git", "for-each-ref", "--sort=-authordate", "--count=1", "--format='%(refname)'"])
                 newest_ref = newest_ref.strip(b"\n'")
-
         except Exception as e:
             logger.critical("Error with the reference handling")
             logger.critical("{}".format(e))
@@ -118,7 +118,7 @@ with open(index_file_path) as f:
                 logger.critical("Error handling reference for {} {}".format(author, name))
                 logger.critical("Reference is {}".format(newest_ref.decode('ascii', errors='ignore')))
                 pass
-
+                
         finally:
             logger.debug("Changing dir to {}".format(wd))
             os.chdir(wd)
