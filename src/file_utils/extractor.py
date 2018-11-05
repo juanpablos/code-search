@@ -79,47 +79,52 @@ with open(index_file, encoding="utf-8") as f:
         wd = os.getcwd()
         # change dir to author/repo
         to_search = "{}/{}/{}".format(repos_path, author, repo)
-        logger.debug("Changing dir to {}".format(to_search))
-        os.chdir(to_search)
-        with open(db_file, 'a', newline='') as o:
-            writer = csv.DictWriter(o, fieldnames=fieldnames)
+        try:
+            logger.debug("Changing dir to {}".format(to_search))
+            os.chdir(to_search)
+        except FileNotFoundError:
+            logger.warning("Path cannot be found")
+            logger.debug("{} is an unpacked repository".format(to_search))
+        else:
+            with open(db_file, 'a', newline='') as o:
+                writer = csv.DictWriter(o, fieldnames=fieldnames)
 
-            # list all files and search for extensions
-            for root, dirnames, filenames in os.walk('.'):
-                logger.debug("Searching in {}".format(root))
-                for file in filenames:
-                    line = {}
+                # list all files and search for extensions
+                for root, dirnames, filenames in os.walk('.'):
+                    logger.debug("Searching in {}".format(root))
+                    for file in filenames:
+                        line = {}
 
-                    # TODO: refactor
-                    if file.lower().endswith('.java'):
-                        line['language'] = 'java'
-                    elif file.lower().endswith('.py'):
-                        line['language'] = 'python'
-                    else:
-                        logger.debug("{} is not in the language list".format(file))
-                        continue
+                        # TODO: refactor
+                        if file.lower().endswith('.java'):
+                            line['language'] = 'java'
+                        elif file.lower().endswith('.py'):
+                            line['language'] = 'python'
+                        else:
+                            logger.debug("{} is not in the language list".format(file))
+                            continue
 
-                    line['author'] = author
-                    line['repository'] = repo
-                    line['name'] = file
-                    # remove the dot (.)
-                    line['path'] = root[1:]
+                        line['author'] = author
+                        line['repository'] = repo
+                        line['name'] = file
+                        # remove the dot (.)
+                        line['path'] = root[1:]
 
-                    file_hash = hash_file(os.path.join(root, file))
-                    line['hash'] = file_hash
+                        file_hash = hash_file(os.path.join(root, file))
+                        line['hash'] = file_hash
 
-                    # write in index | java | python
-                    logger.info("Writing file {}".format(file))
-                    writer.writerow(line)
+                        # write in index | java | python
+                        logger.info("Writing file {}".format(file))
+                        writer.writerow(line)
 
-                    # copy | java dir | python dir
-                    logger.info("Copying file {}".format(file))
-                    shutil.copyfile(os.path.join(root, file),
-                                    "{}/{}/{}".format(files_path, line['language'], file_hash))
-
-        # change dir to root
-        logger.debug("Changing dir to {}".format(wd))
-        os.chdir(wd)
-        logger.debug("Force writing")
-        f.flush()
-        os.fsync(f.fileno())
+                        # copy | java dir | python dir
+                        logger.info("Copying file {}".format(file))
+                        shutil.copyfile(os.path.join(root, file),
+                                        "{}/{}/{}".format(files_path, line['language'], file_hash))
+        finally:
+            # change dir to root
+            logger.debug("Changing dir to {}".format(wd))
+            os.chdir(wd)
+            logger.debug("Force writing")
+            f.flush()
+            os.fsync(f.fileno())
