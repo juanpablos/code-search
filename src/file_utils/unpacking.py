@@ -6,9 +6,6 @@ import subprocess
 import sys
 from itertools import repeat
 
-# TODO: right now we select only the biggest SIVA file, this might be inaccurate
-# Best way would be to unpack every siva file for a repository, then compare their references and timestamps
-
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG, format="%(levelname)s %(asctime)s %(message)s", filename="logger.log")
 
@@ -25,13 +22,8 @@ errors.setFormatter(formatter)
 logger.addHandler(console)
 logger.addHandler(errors)
 
-
-def no_heads(references):
-    return [i.split(" ")[-1] for i in references.split("\n")]
-
-
 siva_path = "./siva/latest"
-repos_path = "./repos"
+repos_path = "./repositories"
 index_file_path = "./index.csv"
 
 logger.debug("Making repo dir")
@@ -49,6 +41,12 @@ while True:
 ##################
 
 
+def search_config(url):
+    # git config --local -l
+    #
+    pass
+
+
 with open(index_file_path) as f:
     index = csv.reader(f)
 
@@ -58,6 +56,24 @@ with open(index_file_path) as f:
         logger.info("Unpacking {} {}".format(author, name))
 
         siva_files = row[1].split(",")
+        # create /temp
+        # extract to author/repo/temp/<siva>/.git
+        # search for /refs/heads/HEAD
+        # os.path.isdir(/author/repo/temp/<siva>/.git/refs/heads/HEAD)
+        # if not found delete whole <siva>
+        # assert only one <siva> remains -> error
+        # count files in HEAD
+        # ref = os.listdir(/author/repo/temp/<siva>/.git/refs/heads/HEAD)
+        # if len(ref)>1
+        # open config and search for <url>, then corresponding <ref>
+        # git remote -v -> out
+        # ref = re.search(r'.*<url>', out.decode('utf8'), re.MULTILINE).group(0).split('\t')[0]
+        # -
+        # else -> ref = ref[0]
+        # checkout <ref>
+        # rm .git
+        # mv author/repo/temp/<siva>/* to author/repo/
+
         comp = dict(zip(siva_files, repeat(0, len(siva_files))))
         one = False
         for file in siva_files:
@@ -118,7 +134,7 @@ with open(index_file_path) as f:
                 logger.critical("Error handling reference for {} {}".format(author, name))
                 logger.critical("Reference is {}".format(newest_ref.decode('ascii', errors='ignore')))
                 pass
-                
+
         finally:
             logger.debug("Changing dir to {}".format(wd))
             os.chdir(wd)
