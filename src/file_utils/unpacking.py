@@ -86,7 +86,8 @@ with open(index_file_path) as f:
         logger.debug("Calculating number of siva files with HEAD references")
         head_sivas = os.listdir(repo_dir + "/temp")
         if len(head_sivas) > 1:
-            logger.critical("More than one siva file with HEAD for repository {}/{}".format(author, name))
+            logger.critical(
+                "More than one siva file with HEAD for repository {}/{} ({})".format(author, name, len(head_sivas)))
             logger.critical("Siva files with HEADs {}".format(head_sivas))
             logger.info("Skipping")
             logger.debug("Removing {}".format(repo_dir))
@@ -104,8 +105,13 @@ with open(index_file_path) as f:
             # count files in HEAD
             logger.debug("Listing number of HEAD references")
             refs = os.listdir(repo_dir + "/temp/{}/.git/refs/heads/HEAD".format(siva))
+
+            wd = os.getcwd()
+            logger.debug("Changing dir to {}".format(repo_dir + "/temp/{}/".format(siva)))
+            os.chdir(repo_dir + "/temp/{}/".format(siva))
+
             if len(refs) > 1:
-                logger.info("More than one reference found")
+                logger.info("More than one reference found ({})".format(len(refs)))
                 # open config/remotes and search for <url>, then corresponding <ref>
                 # git remote -v to get pair <reference> <url>
                 remotes = subprocess.check_output(["git", "remote", "-v"]).decode('utf-8')
@@ -114,6 +120,10 @@ with open(index_file_path) as f:
                     logger.critical(
                         "No HEAD reference found for siva file {} in repository {}/{}".format(siva, author, name))
                     logger.critical("No reference found for url {}".format(url))
+
+                    logger.debug("Changing dir to {}".format(wd))
+                    os.chdir(wd)
+
                     logger.debug("Removing {}".format(repo_dir))
                     shutil.rmtree(repo_dir, ignore_errors=True)
                     continue
@@ -124,10 +134,6 @@ with open(index_file_path) as f:
                 ref = refs[0]
 
             logger.info("Found reference {}".format(ref))
-
-            wd = os.getcwd()
-            logger.debug("Changing dir to {}".format(repo_dir + "/temp/{}/".format(siva)))
-            os.chdir(repo_dir + "/temp/{}/".format(siva))
 
             # checkout <ref>
             logger.info("Checking out reference")
@@ -142,7 +148,9 @@ with open(index_file_path) as f:
             # mv author/repo/temp/<siva>/* to author/repo/
             logger.info("Moving files from temp to repository")
             logger.debug("Moving dir {} to {}".format(repo_dir + "/temp/{}".format(siva), repo_dir))
-            shutil.move(repo_dir + "/temp/{}".format(siva), repo_dir)
+            src = repo_dir + "/temp/{}/".format(siva)
+            for content in os.listdir(src):
+                shutil.move(src + content, repo_dir)
             # rm temp
             logger.debug("Cleaning /temp directory")
             shutil.rmtree(repo_dir + "/temp", ignore_errors=True)
