@@ -52,16 +52,16 @@ with open(index_file_path) as f:
 
         siva_files = row[1].split(",")
 
-        # create /temp
+        # create dir
         repo_dir = "{repo_path}/{author}/{name}".format(repo_path=repos_path, author=author, name=name)
-        logger.debug("Creating path {}".format(repo_dir + "/temp"))
-        os.makedirs(repo_dir + "/temp")
+        logger.debug("Creating path {}".format(repo_dir))
+        os.makedirs(repo_dir)
 
         for siva in siva_files:
             siva_file_path = "{path}/{hash}/{file}".format(path=siva_path, hash=siva[:2], file=siva)
-            siva_extract_path = repo_dir + "/temp/{}/.git".format(siva.split(".")[0])
+            siva_extract_path = repo_dir + "/{}/.git".format(siva.split(".")[0])
 
-            # extract to author/repo/temp/<siva>/.git
+            # extract to author/repo/<siva>/.git
             logger.debug("Extracting {} to {}".format(siva, siva_extract_path))
             logger.debug("Extracting {}".format(siva))
             if os.path.exists(siva_file_path):
@@ -77,14 +77,14 @@ with open(index_file_path) as f:
             if not os.path.isdir(siva_extract_path + "/refs/heads/HEAD"):
                 # if not found delete whole <siva>
                 logger.info("No HEAD reference found, continuing")
-                logger.debug("Removing temp siva repo {}".format(siva.split(".")[0]))
-                shutil.rmtree(repo_dir + "/temp/{}".format(siva.split(".")[0]), ignore_errors=True)
+                logger.debug("Removing siva repo {}".format(siva.split(".")[0]))
+                shutil.rmtree(repo_dir + "/{}".format(siva.split(".")[0]), ignore_errors=True)
                 logger.debug("Skipping siva")
                 continue
 
         # assert only one <siva> remains -> error
         logger.debug("Calculating number of siva files with HEAD references")
-        head_sivas = os.listdir(repo_dir + "/temp")
+        head_sivas = os.listdir(repo_dir)
         if len(head_sivas) > 1:
             logger.critical(
                 "More than one siva file with HEAD for repository {}/{} ({})".format(author, name, len(head_sivas)))
@@ -104,11 +104,11 @@ with open(index_file_path) as f:
             siva = head_sivas[0]
             # count files in HEAD
             logger.debug("Listing number of HEAD references")
-            refs = os.listdir(repo_dir + "/temp/{}/.git/refs/heads/HEAD".format(siva))
+            refs = os.listdir(repo_dir + "/{}/.git/refs/heads/HEAD".format(siva))
 
             wd = os.getcwd()
-            logger.debug("Changing dir to {}".format(repo_dir + "/temp/{}/".format(siva)))
-            os.chdir(repo_dir + "/temp/{}/".format(siva))
+            logger.debug("Changing dir to {}".format(repo_dir + "/{}/".format(siva)))
+            os.chdir(repo_dir + "/{}/".format(siva))
 
             if len(refs) > 1:
                 logger.info("More than one reference found ({})".format(len(refs)))
@@ -144,13 +144,13 @@ with open(index_file_path) as f:
             os.chdir(wd)
             # rm .git
             logger.debug("Cleaning .git directory")
-            shutil.rmtree(repo_dir + "/temp/{}/.git".format(siva), ignore_errors=True)
-            # mv author/repo/temp/<siva>/* to author/repo/
-            logger.info("Moving files from temp to repository")
-            logger.debug("Moving dir {} to {}".format(repo_dir + "/temp/{}".format(siva), repo_dir))
-            src = repo_dir + "/temp/{}/".format(siva)
+            shutil.rmtree(repo_dir + "/{}/.git".format(siva), ignore_errors=True)
+            # mv author/repo/<siva>/* to author/repo/
+            logger.info("Moving files from siva directory to repository")
+            logger.debug("Moving dir {} to {}".format(repo_dir + "/{}".format(siva), repo_dir))
+            src = repo_dir + "/{}/".format(siva)
             for content in os.listdir(src):
                 shutil.move(src + content, repo_dir)
-            # rm temp
-            logger.debug("Cleaning /temp directory")
-            shutil.rmtree(repo_dir + "/temp", ignore_errors=True)
+            # rm siva directory
+            logger.debug("Cleaning siva directory")
+            shutil.rmtree(repo_dir + "/{}/".format(siva), ignore_errors=True)
