@@ -64,8 +64,13 @@ with open(index_file_path) as f:
             # extract to author/repo/temp/<siva>/.git
             logger.debug("Extracting {} to {}".format(siva, siva_extract_path))
             logger.debug("Extracting {}".format(siva))
-            subprocess.run(["siva", "unpack", siva_file_path, siva_extract_path], stdout=subprocess.DEVNULL,
-                           stderr=subprocess.DEVNULL)
+            if os.path.exists(siva_file_path):
+                subprocess.run(["siva", "unpack", siva_file_path, siva_extract_path], stdout=subprocess.DEVNULL,
+                               stderr=subprocess.DEVNULL)
+            else:
+                logger.warning("Siva file not found".format(siva_file_path))
+                logger.debug("Skipping")
+                continue
 
             # search for /refs/heads/HEAD
             logger.debug("Checking existence of HEAD references in siva")
