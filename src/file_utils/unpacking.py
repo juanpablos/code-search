@@ -44,7 +44,8 @@ while True:
 with open(index_file_path) as f:
     index = csv.reader(f)
 
-    for row in index:
+    for line_no, row in enumerate(index):
+        logger.debug("Working with line {}".format(line_no))
         url = row[0]
         author = url.split('/')[-2]
         name = url.split('/')[-1]
@@ -86,6 +87,7 @@ with open(index_file_path) as f:
         logger.debug("Calculating number of siva files with HEAD references")
         head_sivas = os.listdir(repo_dir)
         if len(head_sivas) > 1:
+            logger.critical("Problem in line {}".format(line_no))
             logger.critical(
                 "More than one siva file with HEAD for repository {}/{} ({})".format(author, name, len(head_sivas)))
             logger.critical("Siva files with HEADs {}".format(head_sivas))
@@ -94,6 +96,7 @@ with open(index_file_path) as f:
             shutil.rmtree(repo_dir, ignore_errors=True)
             continue
         elif len(head_sivas) == 0:
+            logger.critical("Problem in line {}".format(line_no))
             logger.critical("No siva file with HEAD for repository {}/{}".format(author, name))
             logger.info("Skipping")
             logger.debug("Removing {}".format(repo_dir))
@@ -117,6 +120,7 @@ with open(index_file_path) as f:
                 remotes = subprocess.check_output(["git", "remote", "-v"]).decode('utf-8')
                 ref = re.search(r'.*{}'.format(url), remotes, re.MULTILINE).group(0).split('\t')[0]
                 if not ref:
+                    logger.critical("Problem in line {}".format(line_no))
                     logger.critical(
                         "No HEAD reference found for siva file {} in repository {}/{}".format(siva, author, name))
                     logger.critical("No reference found for url {}".format(url))
@@ -150,7 +154,17 @@ with open(index_file_path) as f:
             logger.debug("Moving dir {} to {}".format(repo_dir + "/{}".format(siva), repo_dir))
             src = repo_dir + "/{}/".format(siva)
             for content in os.listdir(src):
-                shutil.move(src + content, repo_dir)
+                try:
+                    if os.path.islink(src + content):
+                        shutil.copy2(src + content, repo_dir, follow_symlinks=False)
+                    else:
+                        shutil.move(src + content, repo_dir)
+                except OSError as e:
+                    logger.critical(
+                        "Error handling {} in repository {}/{} siva file {} with ref {}".format(content, author, name,
+                                                                                                siva, ref))
+                    logger.critical("{}".format(e))
+                    logger.debug("Ignoring...")
             # rm siva directory
             logger.debug("Cleaning siva directory")
             shutil.rmtree(repo_dir + "/{}/".format(siva), ignore_errors=True)
