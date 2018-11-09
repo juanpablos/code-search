@@ -46,11 +46,21 @@ with open(index_file_path) as f:
 
     for line_no, row in enumerate(index):
         logger.debug("Working with line {}".format(line_no))
+
         url = row[0]
         author = url.split('/')[-2]
         name = url.split('/')[-1]
-        logger.info("Unpacking {} {}".format(author, name))
 
+        # ------------------
+        # to speed things up a bit
+        langs = row[3].lower().split(',')
+        if not any(l in langs for l in ["python", "java"]):
+            logger.debug("{}/{} do not have python/java source code".format(author, name))
+            logger.info("Skipping line {} {}/{}".format(line_no, author, name))
+            continue
+        # ------------------
+
+        logger.info("Unpacking {} {}".format(author, name))
         siva_files = row[1].split(",")
 
         # create dir
