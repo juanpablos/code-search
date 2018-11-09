@@ -1,10 +1,10 @@
 import csv
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
-from itertools import repeat
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG, format="%(levelname)s %(asctime)s %(message)s", filename="logger.log")
@@ -38,105 +38,106 @@ while True:
         maxInt = int(maxInt / 10)
     else:
         break
+
 ##################
-
-
-def search_config(url):
-    # git config --local -l
-    #
-    pass
-
 
 with open(index_file_path) as f:
     index = csv.reader(f)
 
     for row in index:
-        author = row[0].split('/')[-2]
-        name = row[0].split('/')[-1]
+        url = row[0]
+        author = url.split('/')[-2]
+        name = url.split('/')[-1]
         logger.info("Unpacking {} {}".format(author, name))
 
         siva_files = row[1].split(",")
+
         # create /temp
-        # extract to author/repo/temp/<siva>/.git
-        # search for /refs/heads/HEAD
-        # os.path.isdir(/author/repo/temp/<siva>/.git/refs/heads/HEAD)
-        # if not found delete whole <siva>
+        repo_dir = "{repo_path}/{author}/{name}".format(repo_path=repos_path, author=author, name=name)
+        logger.debug("Creating path {}".format(repo_dir + "/temp"))
+        os.makedirs(repo_dir + "/temp")
+
+        for siva in siva_files:
+            siva_file_path = "{path}/{hash}/{file}".format(path=siva_path, hash=siva[:2], file=siva)
+            siva_extract_path = repo_dir + "/temp/{}/.git".format(siva.split(".")[0])
+
+            # extract to author/repo/temp/<siva>/.git
+            logger.debug("Extracting {} to {}".format(siva, siva_extract_path))
+            logger.debug("Extracting {}".format(siva))
+            subprocess.run(["siva", "unpack", siva_file_path, siva_extract_path], stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL)
+
+            # search for /refs/heads/HEAD
+            logger.debug("Checking existence of HEAD references in siva")
+            if not os.path.isdir(siva_extract_path + "/refs/heads/HEAD"):
+                # if not found delete whole <siva>
+                logger.info("No HEAD reference found, continuing")
+                logger.debug("Removing temp siva repo {}".format(siva.split(".")[0]))
+                shutil.rmtree(repo_dir + "/temp/{}".format(siva.split(".")[0]), ignore_errors=True)
+                logger.debug("Skipping siva")
+                continue
+
         # assert only one <siva> remains -> error
-        # count files in HEAD
-        # ref = os.listdir(/author/repo/temp/<siva>/.git/refs/heads/HEAD)
-        # if len(ref)>1
-        # open config and search for <url>, then corresponding <ref>
-        # git remote -v -> out
-        # ref = re.search(r'.*<url>', out.decode('utf8'), re.MULTILINE).group(0).split('\t')[0]
-        # -
-        # else -> ref = ref[0]
-        # checkout <ref>
-        # rm .git
-        # mv author/repo/temp/<siva>/* to author/repo/
-
-        comp = dict(zip(siva_files, repeat(0, len(siva_files))))
-        one = False
-        for file in siva_files:
-            try:
-                comp[file] = os.path.getsize("{path}/{hash}/{file}".format(path=siva_path, hash=file[:2], file=file))
-                one = True
-            except FileNotFoundError:
-                logger.debug("{} not found".format(file))
-                pass
-
-        if not one:
-            # no siva file found
-            logger.warning("No siva file found for {} {}".format(author, name))
-            logger.debug("Skipping")
+        logger.debug("Calculating number of siva files with HEAD references")
+        head_sivas = os.listdir(repo_dir + "/temp")
+        if len(head_sivas) > 1:
+            logger.critical("More than one siva file with HEAD for repository {}/{}".format(author, name))
+            logger.critical("Siva files with HEADs {}".format(head_sivas))
+            logger.info("Skipping")
+            logger.debug("Removing {}".format(repo_dir))
+            shutil.rmtree(repo_dir, ignore_errors=True)
             continue
-
-        biggest_siva = max(comp.items(), key=lambda x: x[1])[0]
-        biggest_path = "{path}/{hash}/{file}".format(path=siva_path, hash=biggest_siva[:2], file=biggest_siva)
-
-        repo_dir = "{repo_path}/{author}/{name}/.git/".format(repo_path=repos_path, author=author, name=name)
-
-        logger.debug("Extracting {} to {}".format(biggest_siva, repo_dir))
-        os.makedirs(repo_dir)
-
-        logger.info("Extracting {}".format(biggest_siva))
-        subprocess.run(["siva", "unpack", biggest_path, repo_dir], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-
-        wd = os.getcwd()
-        # .git/ must be removed
-        logger.debug("Changing dir to {}".format(repo_dir[:-5]))
-        os.chdir(repo_dir[:-5])
-        # choose a head ref to checkout
-        logger.debug("Calling show ref...")
-        try:
-            newest_ref = subprocess.check_output(
-                ["git", "for-each-ref", "refs/heads", "--sort=-authordate", "--count=1", "--format='%(refname)'"])
-            newest_ref = newest_ref.strip(b"\n'")
-
-            if not newest_ref:
-                logger.debug("No HEAD matches")
-                logger.debug("Falling back to any ref")
-
-                newest_ref = subprocess.check_output(
-                    ["git", "for-each-ref", "--sort=-authordate", "--count=1", "--format='%(refname)'"])
-                newest_ref = newest_ref.strip(b"\n'")
-        except Exception as e:
-            logger.critical("Error with the reference handling")
-            logger.critical("{}".format(e))
-            logger.critical("{} {} {}".format(author, name, biggest_siva))
+        elif len(head_sivas) == 0:
+            logger.critical("No siva file with HEAD for repository {}/{}".format(author, name))
+            logger.info("Skipping")
+            logger.debug("Removing {}".format(repo_dir))
+            shutil.rmtree(repo_dir, ignore_errors=True)
+            continue
         else:
-            try:
-                logger.debug("Newest head reference {}".format(newest_ref.decode('utf-8')))
-                # git checkout ref
-                logger.info("Checking out reference")
-                subprocess.run(["git", "checkout", newest_ref.decode('utf-8')], stdout=subprocess.DEVNULL,
-                               stderr=subprocess.DEVNULL)
-            except:
-                logger.critical("Error handling reference for {} {}".format(author, name))
-                logger.critical("Reference is {}".format(newest_ref.decode('ascii', errors='ignore')))
-                pass
+            logger.debug("Only one siva file with HEAD references found")
+            siva = head_sivas[0]
+            # count files in HEAD
+            logger.debug("Listing number of HEAD references")
+            refs = os.listdir(repo_dir + "/temp/{}/.git/refs/heads/HEAD".format(siva))
+            if len(refs) > 1:
+                logger.info("More than one reference found")
+                # open config/remotes and search for <url>, then corresponding <ref>
+                # git remote -v to get pair <reference> <url>
+                remotes = subprocess.check_output(["git", "remote", "-v"]).decode('utf-8')
+                ref = re.search(r'.*{}'.format(url), remotes, re.MULTILINE).group(0).split('\t')[0]
+                if not ref:
+                    logger.critical(
+                        "No HEAD reference found for siva file {} in repository {}/{}".format(siva, author, name))
+                    logger.critical("No reference found for url {}".format(url))
+                    logger.debug("Removing {}".format(repo_dir))
+                    shutil.rmtree(repo_dir, ignore_errors=True)
+                    continue
 
-        finally:
+                logger.debug("Found reference {} for url {}".format(ref, url))
+            else:
+                logger.debug("Found a single reference")
+                ref = refs[0]
+
+            logger.info("Found reference {}".format(ref))
+
+            wd = os.getcwd()
+            logger.debug("Changing dir to {}".format(repo_dir + "/temp/{}/".format(siva)))
+            os.chdir(repo_dir + "/temp/{}/".format(siva))
+
+            # checkout <ref>
+            logger.info("Checking out reference")
+            subprocess.run(["git", "checkout", "refs/heads/HEAD/{}".format(ref)], stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL)
+
             logger.debug("Changing dir to {}".format(wd))
             os.chdir(wd)
+            # rm .git
             logger.debug("Cleaning .git directory")
-            shutil.rmtree(repo_dir, ignore_errors=True)
+            shutil.rmtree(repo_dir + "/temp/{}/.git".format(siva), ignore_errors=True)
+            # mv author/repo/temp/<siva>/* to author/repo/
+            logger.info("Moving files from temp to repository")
+            logger.debug("Moving dir {} to {}".format(repo_dir + "/temp/{}".format(siva), repo_dir))
+            shutil.move(repo_dir + "/temp/{}".format(siva), repo_dir)
+            # rm temp
+            logger.debug("Cleaning /temp directory")
+            shutil.rmtree(repo_dir + "/temp", ignore_errors=True)
