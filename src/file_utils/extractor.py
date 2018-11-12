@@ -3,6 +3,7 @@ import hashlib
 import logging
 import os
 import shutil
+import sys
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG, format="%(levelname)s %(asctime)s %(message)s", filename="ext_logger.log")
@@ -21,7 +22,7 @@ logger.addHandler(console)
 
 # File definitions
 index_file = os.path.abspath("./index.csv")
-repos_path = os.path.abspath("./repositories")
+repos_path = os.path.abspath("./repos")
 files_path = os.path.abspath("./corpus")
 
 search_for = ['java', 'python']
@@ -38,6 +39,19 @@ os.makedirs(python_path, exist_ok=True)
 # 64kb
 BUF_SIZE = 65536
 logger.debug("Reading with {} bytes".format(BUF_SIZE // 1024))
+
+######### NEVER DO THIS AGAIN #########
+maxInt = sys.maxsize
+while True:
+    try:
+        csv.field_size_limit(maxInt)
+    except OverflowError:
+        maxInt = int(maxInt / 10)
+    else:
+        break
+
+
+##################
 
 
 def hash_file(filename):
