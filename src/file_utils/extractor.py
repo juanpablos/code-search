@@ -151,14 +151,15 @@ with open(index_file, encoding="utf-8") as f:
                             else:
                                 # write in index | java | python
                                 # only write if no problem occurs
-                                logger.info("Writing file {} to db".format(file))
+                                logger.info("Writing file {} to db".format(
+                                    file.encode("utf-8", errors="surrogateescape").decode("utf-8", errors="replace")))
                                 writer.writerow(line)
                         except Exception as e:
                             logger.critical("{}".format(e))
                             logger.critical("Error while working with repo {}/{}".format(author, repo))
                             logger.critical("Unrecoverable error with file {}/{}".format(
-                                root.encode("utf8", errors="surrogateescape").decode("utf8", errors="surrogateescape"),
-                                file.encode("utf8", errors="surrogateescape").decode("utf8", errors="surrogateescape")))
+                                root.encode("utf-8", errors="surrogateescape").decode("utf-8", errors="replace"),
+                                file.encode("utf-8", errors="surrogateescape").decode("utf-8", errors="replace")))
                             continue
 
         finally:
