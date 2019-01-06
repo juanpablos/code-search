@@ -3,6 +3,7 @@ import hashlib
 import logging
 import os
 import shutil
+import sys
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG, format="%(levelname)s %(asctime)s %(message)s", filename="ext_logger.log")
@@ -21,7 +22,7 @@ logger.addHandler(console)
 
 # File definitions
 index_file = os.path.abspath("./index.csv")
-repos_path = os.path.abspath("./repositories")
+repos_path = os.path.abspath("./repos")
 files_path = os.path.abspath("./corpus")
 
 search_for = ['java', 'python']
@@ -38,6 +39,19 @@ os.makedirs(python_path, exist_ok=True)
 # 64kb
 BUF_SIZE = 65536
 logger.debug("Reading with {} bytes".format(BUF_SIZE // 1024))
+
+######### NEVER DO THIS AGAIN #########
+maxInt = sys.maxsize
+while True:
+    try:
+        csv.field_size_limit(maxInt)
+    except OverflowError:
+        maxInt = int(maxInt / 10)
+    else:
+        break
+
+
+##################
 
 
 def hash_file(filename):
@@ -98,46 +112,55 @@ with open(index_file, encoding="utf-8") as f:
                 for root, dirnames, filenames in os.walk('.'):
                     logger.debug("Searching in {}".format(root))
                     for file in filenames:
-                        logger.debug("Looking at file {}".format(file))
-                        line = {}
-
-                        # TODO: refactor
-                        if file.lower().endswith('.java'):
-                            line['language'] = 'java'
-                        elif file.lower().endswith('.py'):
-                            line['language'] = 'python'
-                        else:
-                            logger.debug("{} is not in the language list".format(file))
-                            continue
-
-                        line['author'] = author
-                        line['repository'] = repo
-                        line['name'] = file
-                        # remove the dot (.)
-                        line['path'] = root[2:]
-
                         try:
-                            file_hash = hash_file(os.path.join(root, file))
-                        except Exception:
-                            logger.critical("Problem while hashing {}/{}".format(root, file))
-                            logger.warning("Skipping file")
-                            continue
+                            logger.debug("Looking at file {}".format(file))
+                            line = {}
 
-                        line['hash'] = file_hash
+                            # TODO: refactor
+                            if file.lower().endswith('.java'):
+                                line['language'] = 'java'
+                            elif file.lower().endswith('.py'):
+                                line['language'] = 'python'
+                            else:
+                                logger.debug("{} is not in the language list".format(file))
+                                continue
 
-                        # copy | java dir | python dir
-                        logger.info("Copying file {}".format(file))
-                        try:
-                            shutil.copyfile(os.path.join(root, file),
-                                            "{}/{}/{}".format(files_path, line['language'], file_hash))
-                        except IOError as e:
+                            line['author'] = author
+                            line['repository'] = repo
+                            line['name'] = file
+                            # remove the dot (.)
+                            line['path'] = root[2:]
+
+                            try:
+                                file_hash = hash_file(os.path.join(root, file))
+                            except Exception:
+                                logger.critical("Problem while hashing {}/{}".format(root, file))
+                                logger.warning("Skipping file")
+                                continue
+
+                            line['hash'] = file_hash
+
+                            # copy | java dir | python dir
+                            logger.info("Copying file {}".format(file))
+                            try:
+                                shutil.copyfile(os.path.join(root, file),
+                                                "{}/{}/{}".format(files_path, line['language'], file_hash))
+                            except IOError as e:
+                                logger.critical("{}".format(e))
+                                logger.critical("Problem while copying {}/{}".format(root, file))
+                            else:
+                                # write in index | java | python
+                                # only write if no problem occurs
+                                logger.info("Writing file {} to db".format(
+                                    file.encode("utf-8", errors="surrogateescape").decode("utf-8", errors="replace")))
+                                writer.writerow(line)
+                        except Exception as e:
                             logger.critical("{}".format(e))
-                            logger.critical("Problem while copying {}/{}".format(root, file))
-                        else:
-                            # write in index | java | python
-                            # only write if no problem occurs
-                            logger.info("Writing file {} to db".format(file))
-                            writer.writerow(line)
+                            logger.critical("Error while working with repo {}/{}".format(author, repo))
+                            logger.critical("Unrecoverable error with file {}/{}".format(
+                                root.encode("utf-8", errors="surrogateescape").decode("utf-8", errors="replace"),
+                                file.encode("utf-8", errors="surrogateescape").decode("utf-8", errors="replace")))
+                            continue
 
         finally:
             # change dir to root
