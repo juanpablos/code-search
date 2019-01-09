@@ -17,13 +17,14 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 public class MethodCodeWriter {
-    private final static String path = "E:\\Programacion\\CCXXXX - Research\\Resources\\corpus.tar\\";
-    private final static String javaFilePath = path + "java\\";
+    private final static String path = "/home/jpsilva/corpus/";
+    private final static String javaFilePath = path + "java/";
 
 
     public static void main(String[] args) throws IOException {
         int progress = 0;
-        int errors = 0;
+        int classErrors = 0;
+        int methodErrors = 0;
 
         try (Reader reader = Files.newBufferedReader(Paths.get(path + "db.csv"));
              CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT
@@ -39,7 +40,7 @@ public class MethodCodeWriter {
                 if (line.get("language").equals("java")) {
 
                     if (progress % 39670 == 0) {
-                        System.out.println("Progress: " + progress / 39670 + "%, " + errors + " errors");
+                        System.out.println("Progress: " + progress / 39670 + "%, " + classErrors + " class errors, " + methodErrors + " method errors");
                     }
 
                     String fileHash = line.get("hash");
@@ -47,24 +48,30 @@ public class MethodCodeWriter {
                     try {
                         CompilationUnit code = JavaParser.parse(Paths.get(javaFilePath + fileHash));
                         for (MethodDeclaration method : code.findAll(MethodDeclaration.class)) {
+                            try {
+                                String javadoc = "";
+                                if (method.getJavadoc().isPresent()) {
+                                    javadoc = method.getJavadoc().get().getDescription().toText().split("\\R", 2)[0].toLowerCase();
+                                }
+                                method.removeJavaDocComment();
+                                method.getAllContainedComments().forEach(Comment::remove);
+                                String cleanedCode = method.toString().replaceAll("\\s+", " ");
 
-                            String javadoc = "";
-                            if (method.getJavadoc().isPresent()) {
-                                javadoc = method.getJavadoc().get().getDescription().toText().split("\\R", 2)[0].toLowerCase();
+                                methodWriter.printRecord(fileHash, javadoc, cleanedCode);
+                            } catch (RuntimeException e) {
+                                methodErrors++;
+                                errorFileWriter.write("METHOD ERROR: " + method.getName() + " " + fileHash + "\n");
                             }
-                            method.removeJavaDocComment();
-                            method.getAllContainedComments().forEach(Comment::remove);
-                            String cleanedCode = method.toString().replaceAll("\\s+", " ");
-
-                            methodWriter.printRecord(fileHash, javadoc, cleanedCode);
                         }
 
                         progress++;
                     } catch (ParseProblemException e) {
-                        errors++;
-                        errorFileWriter.write(fileHash + "\n");
+                        classErrors++;
+                        errorFileWriter.write("PARSE ERROR: " + fileHash + "\n");
+                    } catch (Exception e) {
+                        System.out.println("Problem in file " + fileHash);
+                        e.printStackTrace();
                     }
-
                 }
             }
         }
