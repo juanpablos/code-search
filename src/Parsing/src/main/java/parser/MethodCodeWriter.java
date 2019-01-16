@@ -64,7 +64,6 @@ public class MethodCodeWriter {
                             }
                         }
 
-                        progress++;
                     } catch (ParseProblemException e) {
                         classErrors++;
                         errorFileWriter.write("PARSE ERROR: " + fileHash + "\n");
@@ -72,6 +71,7 @@ public class MethodCodeWriter {
                         System.out.println("Problem in file " + fileHash);
                         e.printStackTrace();
                     }
+                    progress++;
                 }
             }
         }
