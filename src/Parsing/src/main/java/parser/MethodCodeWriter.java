@@ -55,6 +55,7 @@ public class MethodCodeWriter {
                                 }
                                 method.removeJavaDocComment();
                                 method.getAllContainedComments().forEach(Comment::remove);
+                                method.removeComment();
                                 String cleanedCode = method.toString().replaceAll("\\s+", " ");
 
                                 methodWriter.printRecord(fileHash, javadoc, cleanedCode);
