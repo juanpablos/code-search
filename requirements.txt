@@ -1,3 +1,4 @@
+pandas
 jnius
 lmdb
 torch==0.4.1

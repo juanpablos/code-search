@@ -3,7 +3,7 @@ def get_config():
         'workdir': './data/java_corpus/',
         # data_params
         # training data
-        'train_db': 'java',
+        'train_db': 'java_train',
         # test data
         'valid_db': 'java_valid',
         # use data (computing code vectors)

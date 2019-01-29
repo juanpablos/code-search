@@ -103,7 +103,6 @@ class CodeSearcher:
         data_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size,
                                                   shuffle=True, drop_last=True, num_workers=8, pin_memory=True)
 
-
         for epoch in range(self.model_params['reload'] + 1, nb_epoch):
             epoch_loss = []
             losses = []
