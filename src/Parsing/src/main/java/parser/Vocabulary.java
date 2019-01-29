@@ -32,6 +32,10 @@ public class Vocabulary {
     }
 
     public static void generateVocabulary(String mainFile) throws IOException {
+        generateVocabulary(mainFile, false);
+    }
+
+    public static void generateVocabulary(String mainFile, boolean hasHeader) throws IOException {
         Map<String, Integer> names = new HashMap<>();
         Map<String, Integer> apis = new HashMap<>();
         Map<String, Integer> tokens = new HashMap<>();
@@ -39,11 +43,20 @@ public class Vocabulary {
 
         int progress = 0;
         int ex = 0;
+        CSVFormat format;
+        if (hasHeader) {
+            format = CSVFormat.DEFAULT
+                    .withFirstRecordAsHeader()
+                    .withIgnoreHeaderCase()
+                    .withTrim();
+        } else {
+            format = CSVFormat.DEFAULT
+                    .withHeader("comment", "code")
+                    .withIgnoreHeaderCase()
+                    .withTrim();
+        }
         try (Reader reader = Files.newBufferedReader(Paths.get(workingPath + mainFile));
-             CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT
-                     .withFirstRecordAsHeader()
-                     .withIgnoreHeaderCase()
-                     .withTrim())) {
+             CSVParser csvParser = new CSVParser(reader, format)) {
 
             System.out.println("Parsing Methods");
             for (CSVRecord line : csvParser) {

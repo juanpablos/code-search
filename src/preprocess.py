@@ -81,7 +81,7 @@ def clean_nulls():
 
 def generate_vocab():
     generator = autoclass('parser.Vocabulary')()
-    generator.generateVocabulary(clean_file)
+    generator.generateVocabulary(train_file)
 
 
 def generate_pickle_vocab():
