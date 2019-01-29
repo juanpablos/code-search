@@ -36,10 +36,10 @@ class CodeSearcher:
         self.model_params = conf
         self.path = conf['workdir']
 
-        self.vocab_methname = load_dict(self.path + conf['vocab_name'])
-        self.vocab_apiseq = load_dict(self.path + conf['vocab_api'])
-        self.vocab_tokens = load_dict(self.path + conf['vocab_tokens'])
-        self.vocab_desc = load_dict(self.path + conf['vocab_desc'])
+        self.vocab_methname = load_dict(self.path + conf['vocab_name'], conf['top_names'])
+        self.vocab_apiseq = load_dict(self.path + conf['vocab_api'], conf['top_apis'])
+        self.vocab_tokens = load_dict(self.path + conf['vocab_tokens'], conf['top_tokens'])
+        self.vocab_desc = load_dict(self.path + conf['vocab_desc'], conf['top_descs'])
 
         self.codevecs = []
         self.codebase = []
@@ -94,15 +94,15 @@ class CodeSearcher:
         batch_size = self.model_params['batch_size']
         nb_epoch = self.model_params['nb_epoch']
 
-        train_set = CodeSearchDataset(self.path,
-                                      self.model_params['train_name'], self.model_params['name_len'],
-                                      self.model_params['train_api'], self.model_params['api_len'],
-                                      self.model_params['train_tokens'], self.model_params['tokens_len'],
-                                      self.model_params['train_desc'], self.model_params['desc_len'],
-                                      load_in_memory=True)
+        train_set = CodeSearchDataset(self.model_params['train_db'],
+                                      self.vocab_methname, self.model_params['name_len'],
+                                      self.vocab_apiseq, self.model_params['api_len'],
+                                      self.vocab_tokens, self.model_params['tokens_len'],
+                                      self.vocab_desc, self.model_params['desc_len'])
 
         data_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size,
-                                                  shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+                                                  shuffle=True, drop_last=True, num_workers=8, pin_memory=True)
+
 
         for epoch in range(self.model_params['reload'] + 1, nb_epoch):
             epoch_loss = []
@@ -126,7 +126,7 @@ class CodeSearcher:
             logger.info('[SUMMARY] epo:[{}/{}] Loss={:.5f}'.format(epoch, nb_epoch, np.mean(epoch_loss)))
 
     # Evaluation
-    def eval(self, model, poolsize, K, test_all=True):
+    def eval(self, model, poolsize, K):
         """
         simple validation in a code pool.
         @param: poolsize - size of the code pool, if -1, load the whole test set
@@ -180,15 +180,14 @@ class CodeSearcher:
 
         # load test dataset
         if self.validation_set is None:
-            self.validation_set = CodeSearchDataset(self.path,
-                                                    self.model_params['valid_name'], self.model_params['name_len'],
-                                                    self.model_params['valid_api'], self.model_params['api_len'],
-                                                    self.model_params['valid_tokens'], self.model_params['tokens_len'],
-                                                    self.model_params['valid_desc'], self.model_params['desc_len'],
-                                                    load_in_memory=True)
+            self.validation_set = CodeSearchDataset(self.model_params['valid_db'],
+                                                    self.vocab_methname, self.model_params['name_len'],
+                                                    self.vocab_apiseq, self.model_params['api_len'],
+                                                    self.vocab_tokens, self.model_params['tokens_len'],
+                                                    self.vocab_desc, self.model_params['desc_len'])
 
         data_loader = torch.utils.data.DataLoader(dataset=self.validation_set, batch_size=poolsize,
-                                                  shuffle=False, drop_last=True, num_workers=1, pin_memory=True)
+                                                  shuffle=False, drop_last=True, num_workers=4, pin_memory=True)
 
         accs, mrrs, maps, ndcgs = [], [], [], []
         for names, apis, toks, descs, _ in tqdm(data_loader):
@@ -222,14 +221,13 @@ class CodeSearcher:
     # Compute Representation
     def repr_code(self, model, norm=True):
         logging.info("Start Code Representation")
-        use_set = CodeSearchDataset(self.model_params['workdir'],
-                                    self.model_params['use_names'], self.model_params['name_len'],
-                                    self.model_params['use_apis'], self.model_params['api_len'],
-                                    self.model_params['use_tokens'], self.model_params['tokens_len'],
-                                    load_in_memory=True)
+        use_set = CodeSearchDataset(self.model_params['use_db'],
+                                    self.vocab_methname, self.model_params['name_len'],
+                                    self.vocab_apiseq, self.model_params['api_len'],
+                                    self.vocab_tokens, self.model_params['tokens_len'])
 
         data_loader = torch.utils.data.DataLoader(dataset=use_set, batch_size=1000,
-                                                  shuffle=False, drop_last=False, num_workers=2, pin_memory=True)
+                                                  shuffle=False, drop_last=False, num_workers=4, pin_memory=True)
 
         vecs = []
         logging.debug("Calculating code vectors")

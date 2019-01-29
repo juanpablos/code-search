@@ -1,18 +1,24 @@
 import pickle
 import random
-from functools import partial
+import re
 
+import jnius_config
+import lmdb
 import numpy as np
 import tables
 import torch
 import torch.utils.data as data
 
+jnius_config.set_classpath('./*')
+
+from jnius import autoclass
+
 use_cuda = torch.cuda.is_available()
 
 PAD_token = 0
-SOS_token = 1
-EOS_token = 2
-UNK_token = 3
+# SOS_token = 1
+# EOS_token = 2
+UNK_token = 1
 
 
 class CodeSearchDataset(data.Dataset):
@@ -20,41 +26,41 @@ class CodeSearchDataset(data.Dataset):
     Dataset that has only positive samples.
     """
 
-    def __init__(self, data_dir, f_name, name_len, f_api, api_len,
-                 f_tokens, tok_len, f_descs=None, desc_len=None, load_in_memory=False):
+    def __init__(self, db, name_voc, name_len, api_voc, api_len,
+                 token_voc, token_len, desc_voc=None, desc_len=None):
+        """
 
-        load = tables.open_file
-        if load_in_memory:
-            load = partial(load, driver="H5FD_CORE", driver_core_backing_store=0)
+        :param db: db containing the comments and codes
+        :param name_voc: mapping with word-identifier
+        :param name_len: max length of a name
+        :param api_voc: mapping with word-identifier
+        :param api_len: max length of an api sequence
+        :param token_voc: mapping with word-identifier
+        :param token_len: max length of a set of tokens
+        :param desc_voc: mapping with word-identifier
+        :param desc_len: max length of a comment
+        """
 
         self.name_len = name_len
         self.api_len = api_len
-        self.tok_len = tok_len
+        self.token_len = token_len
         self.desc_len = desc_len
-        # 1. Initialize file path or list of file names.
-        """read training data(list of int arrays) from a hdf5 file"""
-        self.training = False
-        print("loading data...")
-        table_name = load(data_dir + f_name)
-        self.names = table_name.get_node('/phrases')
-        self.idx_names = table_name.get_node('/indices')
-        table_api = load(data_dir + f_api)
-        self.apis = table_api.get_node('/phrases')
-        self.idx_apis = table_api.get_node('/indices')
-        table_tokens = load(data_dir + f_tokens)
-        self.tokens = table_tokens.get_node('/phrases')
-        self.idx_tokens = table_tokens.get_node('/indices')
-        if f_descs is not None:
-            self.training = True
-            table_desc = load(data_dir + f_descs)
-            self.descs = table_desc.get_node('/phrases')
-            self.idx_descs = table_desc.get_node('/indices')
 
-        assert self.idx_names.shape[0] == self.idx_apis.shape[0]
-        assert self.idx_apis.shape[0] == self.idx_tokens.shape[0]
-        if f_descs is not None:
-            assert self.idx_names.shape[0] == self.idx_descs.shape[0]
-        self.data_len = self.idx_names.shape[0]
+        self.name_voc = name_voc
+        self.api_voc = api_voc
+        self.token_voc = token_voc
+
+        if desc_voc is not None:
+            self.training = True
+            self.desc_voc = desc_voc
+
+        self.data = lmdb.open(db, readonly=True)
+
+        self.parser = autoclass('parser.MethodCodeParser')()
+
+        with self.data.begin() as txn:
+            self.data_len = txn.stat()['entries']
+
         print("{} entries".format(self.data_len))
 
     def pad_seq(self, seq, maxlen):
@@ -66,26 +72,34 @@ class CodeSearchDataset(data.Dataset):
         return seq
 
     def __getitem__(self, offset):
-        length, pos = self.idx_names[offset]['length'], self.idx_names[offset]['pos']
-        name = self.names[pos:pos + length].astype('int64')
+        with self.data.begin(write=False) as txn:
+            method_bytes = txn.get('{:09}'.format(offset).encode('ascii'))
+            comment, method = pickle.loads(method_bytes)
+
+        container = self.parser.parseMethod(method)
+
+        name = [self.name_voc.get(container.getNameTokens().get(i), UNK_token) for i in
+                range(container.getNameTokens().size())]
+        apiseq = [self.api_voc.get(container.getApiCalls().get(i), UNK_token) for i in
+                  range(container.getApiCalls().size())]
+        tokens = [self.token_voc.get(container.getBodyTokens().get(i), UNK_token) for i in
+                  range(container.getBodyTokens().size())]
+
         name = self.pad_seq(name, self.name_len)
-
-        length, pos = self.idx_apis[offset]['length'], self.idx_apis[offset]['pos']
-        apiseq = self.apis[pos:pos + length].astype('int64')
         apiseq = self.pad_seq(apiseq, self.api_len)
-
-        length, pos = self.idx_tokens[offset]['length'], self.idx_tokens[offset]['pos']
-        tokens = self.tokens[pos:pos + length].astype('int64')
-        tokens = self.pad_seq(tokens, self.tok_len)
+        tokens = self.pad_seq(tokens, self.token_len)
 
         if self.training:
-            length, pos = self.idx_descs[offset]['length'], self.idx_descs[offset]['pos']
-            good_desc = self.descs[pos:pos + length].astype('int64')
+
+            good_desc = [self.desc_voc.get(word, UNK_token) for word in re.findall(r"[\w]+", comment.lower())]
             good_desc = self.pad_seq(good_desc, self.desc_len)
 
             rand_offset = random.randint(0, self.data_len - 1)
-            length, pos = self.idx_descs[rand_offset]['length'], self.idx_descs[rand_offset]['pos']
-            bad_desc = self.descs[pos:pos + length].astype('int64')
+            with self.data.begin(write=False) as txn:
+                method_bytes = txn.get('{:09}'.format(rand_offset).encode('ascii'))
+                bad_comment, _ = pickle.loads(method_bytes)
+
+            bad_desc = [self.desc_voc.get(word, UNK_token) for word in re.findall(r"[\w]+", bad_comment.lower())]
             bad_desc = self.pad_seq(bad_desc, self.desc_len)
 
             return name, apiseq, tokens, good_desc, bad_desc
@@ -96,9 +110,10 @@ class CodeSearchDataset(data.Dataset):
         return self.data_len
 
 
-def load_dict(filename):
+def load_dict(filename, max_vocab):
     with open(filename, 'rb') as f:
-        return pickle.load(f)
+        vocab = pickle.load(f)[:max_vocab + 1]  # pandas DataFrame
+        return dict(zip(vocab.iloc[:, 0], vocab.iloc[:, 1]))
 
 
 def load_vecs(fin):

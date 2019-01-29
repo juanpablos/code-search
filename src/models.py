@@ -56,10 +56,10 @@ class JointEmbeder(nn.Module):
         self.conf = config
         self.margin = config['margin']
 
-        self.name_encoder = SeqEncoder(config['n_words'], config['emb_size'], config['lstm_dims'])
-        self.api_encoder = SeqEncoder(config['n_words'], config['emb_size'], config['lstm_dims'])
-        self.tok_encoder = BOWEncoder(config['n_words'], config['emb_size'], config['n_hidden'])
-        self.desc_encoder = SeqEncoder(config['n_words'], config['emb_size'], config['lstm_dims'])
+        self.name_encoder = SeqEncoder(config['top_names'], config['emb_size'], config['lstm_dims'])
+        self.api_encoder = SeqEncoder(config['top_apis'], config['emb_size'], config['lstm_dims'])
+        self.tok_encoder = BOWEncoder(config['top_tokens'], config['emb_size'], config['n_hidden'])
+        self.desc_encoder = SeqEncoder(config['top_descs'], config['emb_size'], config['lstm_dims'])
         self.fuse = nn.Linear(config['emb_size'] + 4 * config['lstm_dims'], config['n_hidden'])
 
         # create a model path to store model info

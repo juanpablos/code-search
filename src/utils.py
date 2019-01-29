@@ -48,7 +48,7 @@ def sent2indexes(sentence, vocab):
     '''sentence: a string
        return: a numpy array of word indices
     '''
-    return np.array([vocab[word] for word in sentence.strip().split(' ')])
+    return np.array([vocab.get(word, 1) for word in sentence.strip().split(' ')])
 
 
 ########################################################################

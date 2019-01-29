@@ -1,24 +1,16 @@
 def get_config():
     conf = {
-        'workdir': './data/',
+        'workdir': './data/java_corpus/',
         # data_params
         # training data
-        'train_name': 'train.methname.h5',
-        'train_api': 'train.apiseq.h5',
-        'train_tokens': 'train.tokens.h5',
-        'train_desc': 'train.desc.h5',
+        'train_db': 'java',
         # test data
-        'valid_name': 'test.methname.h5',
-        'valid_api': 'test.apiseq.h5',
-        'valid_tokens': 'test.tokens.h5',
-        'valid_desc': 'test.desc.h5',
+        'valid_db': 'java_valid',
         # use data (computing code vectors)
-        'use_codebase': 'use.rawcode.txt',  # 'use.rawcode.h5'
-        'use_names': 'use.methname.h5',
-        'use_apis': 'use.apiseq.h5',
-        'use_tokens': 'use.tokens.h5',
+        'use_db': 'java_use',
+        'use_codebase': 'use.rawcode.txt',
         # results data(code vectors)
-        'use_codevecs': 'use.codevecs100.128.normalized.h5',  # 'use.codevecs.h5', 'use.codevecs.normalized.h5'
+        'use_codevecs': 'use.codevecs.normalized.h5',  # 'use.codevecs100.128.normalized.h5',  # 'use.codevecs.h5'
 
         # parameters
         'name_len': 6,
@@ -32,35 +24,40 @@ def get_config():
         'vocab_tokens': 'vocab.tokens.pkl',
         'vocab_desc': 'vocab.desc.pkl',
 
+        'top_names': 10000,
+        'top_apis': 10000,
+        'top_tokens': 10000,
+        'top_descs': 10000,
+
         # training_params
         'batch_size': 128,
         'chunk_size': 2000000,
         'nb_epoch': 1000,
-        'validation_split': 0.2,
+        # 'validation_split': 0.2,
         # 'optimizer': 'adam',
         'lr': 0.001,
         'valid_every': 5,
         'n_eval': 100,
-        'evaluate_all_threshold': {
-            'mode': 'all',
-            'top1': 0.4,
-        },
+        # 'evaluate_all_threshold': {
+        #     'mode': 'all',
+        #     'top1': 0.4,
+        # },
         'log_every': 100,
         'save_every': 5,
-        'reload': 100,  # epoch that the model is reloaded from . If reload=0, then train from scratch
+        'reload': 0,  # epoch that the model is reloaded from . If reload=0, then train from scratch
 
-        'model_name': "java_cs",
+        'model_name': "java_cs_v2",
 
         # model_params
         'emb_size': 100,
         'n_hidden': 400,  # number of hidden dimension of code/desc representation
         # recurrent
         'lstm_dims': 200,  # * 2
-        'init_embed_weights_methname': None,  # 'word2vec_100_methname.h5',
-        'init_embed_weights_tokens': None,  # 'word2vec_100_tokens.h5',
-        'init_embed_weights_desc': None,  # 'word2vec_100_desc.h5',
+        # 'init_embed_weights_methname': None,  # 'word2vec_100_methname.h5',
+        # 'init_embed_weights_tokens': None,  # 'word2vec_100_tokens.h5',
+        # 'init_embed_weights_desc': None,  # 'word2vec_100_desc.h5',
         'margin': 0.05,
-        'sim_measure': 'cos',  # similarity measure: gesd, cosine, aesd
+        # 'sim_measure': 'cos',  # similarity measure: gesd, cosine, aesd
 
     }
     return conf
