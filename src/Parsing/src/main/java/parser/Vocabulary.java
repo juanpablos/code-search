@@ -22,13 +22,16 @@ import static parser.MethodCodeParser.parseMethod;
 
 public class Vocabulary {
     private static String workingPath = "../data/java_corpus/";
-    private static String mainFile = workingPath + "method_db.csv";
     private static String nameVocab = workingPath + "nameVocab.csv";
     private static String apiVocab = workingPath + "apiVocab.csv";
     private static String tokenVocab = workingPath + "tokenVocab.csv";
     private static String commentVocab = workingPath + "commentVocab.csv";
 
     public static void main(String[] args) throws IOException {
+        generateVocabulary(args[0]);
+    }
+
+    public static void generateVocabulary(String mainFile) throws IOException {
         Map<String, Integer> names = new HashMap<>();
         Map<String, Integer> apis = new HashMap<>();
         Map<String, Integer> tokens = new HashMap<>();
@@ -36,7 +39,7 @@ public class Vocabulary {
 
         int progress = 0;
         int ex = 0;
-        try (Reader reader = Files.newBufferedReader(Paths.get(mainFile));
+        try (Reader reader = Files.newBufferedReader(Paths.get(workingPath + mainFile));
              CSVParser csvParser = new CSVParser(reader, CSVFormat.DEFAULT
                      .withFirstRecordAsHeader()
                      .withIgnoreHeaderCase()
