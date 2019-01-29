@@ -86,7 +86,7 @@ public class Vocabulary {
 
         System.out.println("Writing Vocabularies");
 
-        int i = 0;
+        int i = 2;
         try (Writer writer = Files.newBufferedWriter(Paths.get(nameVocab));
              CSVPrinter nameWriter = new CSVPrinter(writer, CSVFormat.DEFAULT
                      .withHeader("word", "id", "occ"))) {
@@ -97,7 +97,7 @@ public class Vocabulary {
             }
         }
 
-        i = 0;
+        i = 2;
         try (Writer writer = Files.newBufferedWriter(Paths.get(apiVocab));
              CSVPrinter apiWriter = new CSVPrinter(writer, CSVFormat.DEFAULT
                      .withHeader("word", "id", "occ"))) {
@@ -108,7 +108,7 @@ public class Vocabulary {
             }
         }
 
-        i = 0;
+        i = 2;
         try (Writer writer = Files.newBufferedWriter(Paths.get(tokenVocab));
              CSVPrinter tokenWriter = new CSVPrinter(writer, CSVFormat.DEFAULT
                      .withHeader("word", "id", "occ"))) {
@@ -119,7 +119,7 @@ public class Vocabulary {
             }
         }
 
-        i = 0;
+        i = 2;
         try (Writer writer = Files.newBufferedWriter(Paths.get(commentVocab));
              CSVPrinter commentWriter = new CSVPrinter(writer, CSVFormat.DEFAULT
                      .withHeader("word", "id", "occ"))) {
