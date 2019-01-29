@@ -16,7 +16,7 @@ split = 0.2
 train_size = comments * (1 - split)
 valid_size = comments * split
 
-path = "data/java_corpus/"
+path = "./data/java_corpus/"
 
 main_file = path + "method_db.csv"
 clean_file = path + "method_db_clean.csv"
@@ -30,6 +30,11 @@ name_vocab = path + "nameVocab.csv"
 api_vocab = path + "apiVocab.csv"
 token_vocab = path + "tokenVocab.csv"
 desc_vocab = path + "commentVocab.csv"
+
+name_vocab_pkl = path + "vocab.methname.pkl"
+api_vocab_pkl = path + "vocab.apiseq.pkl"
+token_vocab_pkl = path + "vocab.tokens.pkl"
+desc_vocab_pkl = path + "vocab.desc.pkl"
 
 
 def training_generator():
@@ -81,19 +86,19 @@ def generate_vocab():
 
 def generate_pickle_vocab():
     df = pd.read_csv(name_vocab)
-    with open("./data/java_corpus/vocab.methname.pkl", 'wb') as f:
+    with open(name_vocab_pkl, 'wb') as f:
         pickle.dump(df[["word", "id"]], f)
 
     df = pd.read_csv(api_vocab)
-    with open("./data/java_corpus/vocab.apiseq.pkl", 'wb') as f:
+    with open(api_vocab_pkl, 'wb') as f:
         pickle.dump(df[["word", "id"]], f)
 
     df = pd.read_csv(token_vocab)
-    with open("./data/java_corpus/vocab.tokens.pkl", 'wb') as f:
+    with open(token_vocab_pkl, 'wb') as f:
         pickle.dump(df[["word", "id"]], f)
 
     df = pd.read_csv(desc_vocab)
-    with open("./data/java_corpus/vocab.desc.pkl", 'wb') as f:
+    with open(desc_vocab_pkl, 'wb') as f:
         pickle.dump(df[["word", "id"]], f)
 
 
@@ -110,12 +115,20 @@ def load_in_db(name, file, map_size=1e10):
 
 
 if __name__ == "__main__":
+    print("Cleaning null bytes")
     clean_nulls()
+    print("Separating comments and raw code")
     filter_comment()
+    print("Splitting train and validation datasets")
     training_generator()
+    print("Generating vocabulary")
     generate_vocab()
+    print("Pickling vocabulary")
     generate_pickle_vocab()
 
+    print("Loading train dataset in database")
     load_in_db("java_train", train_file)
+    print("Loading validation dataset in database")
     load_in_db("java_valid", valid_file, map_size=5e9)
+    print("Loading use dataset in database")
     load_in_db("java_use", use_file, map_size=1.5e10)
