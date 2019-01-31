@@ -9,19 +9,20 @@ jnius_config.set_classpath('./*')
 from jnius import autoclass
 
 csv.field_size_limit(922337203)
-total = 33369383
-comments = 7146092
+total = 31703079  # 33369383
+comments = 6739641
 split = 0.2
 
 train_size = comments * (1 - split)
 valid_size = comments * split
 
 path = "./data/java_corpus/"
+train_file_name = "java_train.csv"
 
-main_file = path + "method_db.csv"
+main_file = path + "method_db_cleaned.csv"
 clean_file = path + "method_db_clean.csv"
 comment_file = path + "java_comment.csv"
-train_file = path + "java_train.csv"
+train_file = path + train_file_name
 valid_file = path + "java_valid.csv"
 use_file = path + "java_use.csv"
 use_code_file = path + "use.rawcode.txt"
@@ -57,7 +58,7 @@ def training_generator():
 def filter_comment():
     with open(clean_file, 'r', encoding='utf8') as f:
         with open(comment_file, 'w', encoding='utf8', newline='') as comment:
-            with open(use_code_file, 'w', encoding='utf8', newline='') as use_code, open(use_code_file, 'w',
+            with open(use_code_file, 'w', encoding='utf8', newline='') as use_code, open(use_file, 'w',
                                                                                          encoding='utf8',
                                                                                          newline='') as use:
                 reader = csv.reader(f)
@@ -81,7 +82,7 @@ def clean_nulls():
 
 def generate_vocab():
     generator = autoclass('parser.Vocabulary')()
-    generator.generateVocabulary(train_file)
+    generator.main([path, train_file_name])
 
 
 def generate_pickle_vocab():
@@ -125,10 +126,9 @@ if __name__ == "__main__":
     generate_vocab()
     print("Pickling vocabulary")
     generate_pickle_vocab()
-
     print("Loading train dataset in database")
-    load_in_db("java_train", train_file)
+    load_in_db("java_train", train_file, map_size=3e9)
     print("Loading validation dataset in database")
-    load_in_db("java_valid", valid_file, map_size=5e9)
+    load_in_db("java_valid", valid_file, map_size=1e9)
     print("Loading use dataset in database")
     load_in_db("java_use", use_file, map_size=1.5e10)

@@ -3,6 +3,7 @@ package parser;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class MethodContainer {
     private List<String> nameTokens = new ArrayList<>();
@@ -47,10 +48,15 @@ public class MethodContainer {
 
     @Override
     public String toString() {
-        return "MethodContainer{" +
-                "nameTokens=" + nameTokens +
-                ", bodyTokens=" + bodyTokens +
-                ", apiCalls=" + apiCalls +
-                '}';
+        return "{\"name\":[" + nameTokens.stream()
+                .map(s -> "\"" + s + "\"")
+                .collect(Collectors.joining(", ")) +
+                "], \"token\":[" + bodyTokens.stream()
+                .map(s -> "\"" + s + "\"")
+                .collect(Collectors.joining(", ")) +
+                "], \"api\":[" + apiCalls.stream()
+                .map(s -> "\"" + s + "\"")
+                .collect(Collectors.joining(", ")) +
+                "]}";
     }
 }

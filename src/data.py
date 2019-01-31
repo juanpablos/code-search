@@ -4,16 +4,16 @@ import re
 import subprocess
 from ast import literal_eval
 
-import jnius_config
+# import jnius_config
 import lmdb
 import numpy as np
 import tables
 import torch
 import torch.utils.data as data
 
-jnius_config.set_classpath('./*')
+# jnius_config.set_classpath('./*')
 
-from jnius import autoclass
+# from jnius import autoclass
 
 use_cuda = torch.cuda.is_available()
 
@@ -58,7 +58,7 @@ class CodeSearchDataset(data.Dataset):
 
         self.data = lmdb.open(db, readonly=True)
 
-        self.parser = autoclass('parser.MethodCodeParser')()
+        # self.parser = autoclass('parser.MethodCodeParser')()
 
         with self.data.begin() as txn:
             self.data_len = txn.stat()['entries']
@@ -80,7 +80,7 @@ class CodeSearchDataset(data.Dataset):
 
         container = literal_eval(
             subprocess.check_output(["java", "-jar", "JavaParser.jar", "{}".format(method)]).decode('utf-8').strip())
-        
+
         name = [self.name_voc.get(_name, UNK_token) for _name in container["name"]]
         apiseq = [self.api_voc.get(_api, UNK_token) for _api in container["api"]]
         tokens = [self.token_voc.get(_token, UNK_token) for _token in container["token"]]
