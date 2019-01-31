@@ -45,6 +45,8 @@ public class MethodCodeWriter {
 
                     String fileHash = line.get("hash");
 
+                    // if (temp > 4538284) {
+
                     try {
                         CompilationUnit code = JavaParser.parse(Paths.get(javaFilePath + fileHash));
                         for (MethodDeclaration method : code.findAll(MethodDeclaration.class)) {

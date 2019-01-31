@@ -21,21 +21,21 @@ import static java.util.stream.Collectors.toMap;
 import static parser.MethodCodeParser.parseMethod;
 
 public class Vocabulary {
-    private static String workingPath = "../data/java_corpus/";
-    private static String nameVocab = workingPath + "nameVocab.csv";
-    private static String apiVocab = workingPath + "apiVocab.csv";
-    private static String tokenVocab = workingPath + "tokenVocab.csv";
-    private static String commentVocab = workingPath + "commentVocab.csv";
 
     public static void main(String[] args) throws IOException {
-        generateVocabulary(args[0]);
+        generateVocabulary(args[0], args[1]);
     }
 
-    public static void generateVocabulary(String mainFile) throws IOException {
-        generateVocabulary(mainFile, false);
+    public static void generateVocabulary(String workingPath, String mainFile) throws IOException {
+        generateVocabulary(workingPath, mainFile, false);
     }
 
-    public static void generateVocabulary(String mainFile, boolean hasHeader) throws IOException {
+    public static void generateVocabulary(String workingPath, String mainFile, boolean hasHeader) throws IOException {
+        String nameVocab = workingPath + "nameVocab.csv";
+        String apiVocab = workingPath + "apiVocab.csv";
+        String tokenVocab = workingPath + "tokenVocab.csv";
+        String commentVocab = workingPath + "commentVocab.csv";
+
         Map<String, Integer> names = new HashMap<>();
         Map<String, Integer> apis = new HashMap<>();
         Map<String, Integer> tokens = new HashMap<>();
@@ -51,7 +51,7 @@ public class Vocabulary {
                     .withTrim();
         } else {
             format = CSVFormat.DEFAULT
-                    .withHeader("comment", "code")
+                    .withHeader("doc", "code")
                     .withIgnoreHeaderCase()
                     .withTrim();
         }
@@ -61,10 +61,8 @@ public class Vocabulary {
             System.out.println("Parsing Methods");
             for (CSVRecord line : csvParser) {
 
-                if (progress % 333693 == 0) {
-                    System.out.println("Progress: " + progress / 333693 + "%");
-                    if (progress > 10)
-                        break;
+                if (progress % 71460 == 0) {
+                    System.out.println("Progress: " + progress / 71460 + "%");
                 }
 
                 try {
