@@ -81,9 +81,9 @@ class CodeSearchDataset(data.Dataset):
         container = literal_eval(
             subprocess.check_output(["java", "-jar", "JavaParser.jar", "{}".format(method)]).decode('utf-8').strip())
 
-        name = np.array([self.name_voc.get(_name, UNK_token) for _name in container["name"]])
-        apiseq = np.array([self.api_voc.get(_api, UNK_token) for _api in container["api"]])
-        tokens = np.array([self.token_voc.get(_token, UNK_token) for _token in container["token"]])
+        name = np.array([self.name_voc.get(_name, UNK_token) for _name in container["name"]], dtype=np.int32)
+        apiseq = np.array([self.api_voc.get(_api, UNK_token) for _api in container["api"]], dtype=np.int32)
+        tokens = np.array([self.token_voc.get(_token, UNK_token) for _token in container["token"]], dtype=np.int32)
 
         name = self.pad_seq(name, self.name_len)
         apiseq = self.pad_seq(apiseq, self.api_len)
@@ -91,7 +91,8 @@ class CodeSearchDataset(data.Dataset):
 
         if self.training:
 
-            good_desc = np.array([self.desc_voc.get(word, UNK_token) for word in re.findall(r"[\w]+", comment.lower())])
+            good_desc = np.array([self.desc_voc.get(word, UNK_token) for word in re.findall(r"[\w]+", comment.lower())],
+                                 dtype=np.int32)
             good_desc = self.pad_seq(good_desc, self.desc_len)
 
             rand_offset = random.randint(0, self.data_len - 1)
@@ -100,7 +101,8 @@ class CodeSearchDataset(data.Dataset):
                 bad_comment, _ = pickle.loads(method_bytes)
 
             bad_desc = np.array(
-                [self.desc_voc.get(word, UNK_token) for word in re.findall(r"[\w]+", bad_comment.lower())])
+                [self.desc_voc.get(word, UNK_token) for word in re.findall(r"[\w]+", bad_comment.lower())],
+                dtype=np.int32)
             bad_desc = self.pad_seq(bad_desc, self.desc_len)
 
             return name, apiseq, tokens, good_desc, bad_desc
