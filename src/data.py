@@ -1,6 +1,8 @@
 import pickle
 import random
 import re
+import subprocess
+from ast import literal_eval
 
 import jnius_config
 import lmdb
@@ -76,14 +78,12 @@ class CodeSearchDataset(data.Dataset):
             method_bytes = txn.get('{:09}'.format(offset).encode('ascii'))
             comment, method = pickle.loads(method_bytes)
 
-        container = self.parser.parseMethod(method)
-
-        name = [self.name_voc.get(container.getNameTokens().get(i), UNK_token) for i in
-                range(container.getNameTokens().size())]
-        apiseq = [self.api_voc.get(container.getApiCalls().get(i), UNK_token) for i in
-                  range(container.getApiCalls().size())]
-        tokens = [self.token_voc.get(container.getBodyTokens().get(i), UNK_token) for i in
-                  range(container.getBodyTokens().size())]
+        container = literal_eval(
+            subprocess.check_output(["java", "-jar", "JavaParser.jar", "{}".format(method)]).decode('utf-8').strip())
+        
+        name = [self.name_voc.get(_name, UNK_token) for _name in container["name"]]
+        apiseq = [self.api_voc.get(_api, UNK_token) for _api in container["api"]]
+        tokens = [self.token_voc.get(_token, UNK_token) for _token in container["token"]]
 
         name = self.pad_seq(name, self.name_len)
         apiseq = self.pad_seq(apiseq, self.api_len)
