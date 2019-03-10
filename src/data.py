@@ -1,19 +1,11 @@
 import pickle
 import random
-import re
-import subprocess
-from ast import literal_eval
 
-# import jnius_config
 import lmdb
 import numpy as np
 import tables
 import torch
 import torch.utils.data as data
-
-# jnius_config.set_classpath('./*')
-
-# from jnius import autoclass
 
 use_cuda = torch.cuda.is_available()
 
@@ -58,8 +50,6 @@ class CodeSearchDataset(data.Dataset):
 
         self.data = lmdb.open(db, readonly=True, max_readers=200, lock=False)
 
-        # self.parser = autoclass('parser.MethodCodeParser')()
-
         with self.data.begin() as txn:
             self.data_len = txn.stat()['entries']
 
@@ -76,38 +66,35 @@ class CodeSearchDataset(data.Dataset):
     def __getitem__(self, offset):
         with self.data.begin(write=False) as txn:
             method_bytes = txn.get('{:09}'.format(offset).encode('ascii'))
-            comment, method = pickle.loads(method_bytes)
+            # ([name],[api],[token],[comment])
+            name, api, token, comment = pickle.loads(method_bytes)
 
-        container = literal_eval(
-            subprocess.check_output(["java", "-jar", "JavaParser.jar", "{}".format(method)]).decode('utf-8').strip())
+        names = np.array([self.name_voc.get(_name, UNK_token) for _name in name], dtype=np.int32)
+        apiseq = np.array([self.api_voc.get(_api, UNK_token) for _api in api], dtype=np.int32)
+        tokens = np.array([self.token_voc.get(_token, UNK_token) for _token in token], dtype=np.int32)
 
-        name = np.array([self.name_voc.get(_name, UNK_token) for _name in container["name"]], dtype=np.int32)
-        apiseq = np.array([self.api_voc.get(_api, UNK_token) for _api in container["api"]], dtype=np.int32)
-        tokens = np.array([self.token_voc.get(_token, UNK_token) for _token in container["token"]], dtype=np.int32)
-
-        name = self.pad_seq(name, self.name_len)
+        names = self.pad_seq(names, self.name_len)
         apiseq = self.pad_seq(apiseq, self.api_len)
         tokens = self.pad_seq(tokens, self.token_len)
 
-        if self.training:
+        # re.findall(r"[\w]+", comment.lower())
 
-            good_desc = np.array([self.desc_voc.get(word, UNK_token) for word in re.findall(r"[\w]+", comment.lower())],
-                                 dtype=np.int32)
+        if self.training:
+            good_desc = np.array([self.desc_voc.get(word, UNK_token) for word in comment], dtype=np.int32)
             good_desc = self.pad_seq(good_desc, self.desc_len)
 
             rand_offset = random.randint(0, self.data_len - 1)
             with self.data.begin(write=False) as txn:
                 method_bytes = txn.get('{:09}'.format(rand_offset).encode('ascii'))
-                bad_comment, _ = pickle.loads(method_bytes)
+                _, _, _, bad_comment = pickle.loads(method_bytes)
 
             bad_desc = np.array(
-                [self.desc_voc.get(word, UNK_token) for word in re.findall(r"[\w]+", bad_comment.lower())],
-                dtype=np.int32)
+                [self.desc_voc.get(word, UNK_token) for word in bad_comment], dtype=np.int32)
             bad_desc = self.pad_seq(bad_desc, self.desc_len)
 
-            return name, apiseq, tokens, good_desc, bad_desc
+            return names, apiseq, tokens, good_desc, bad_desc
         else:
-            return name, apiseq, tokens
+            return names, apiseq, tokens
 
     def __len__(self):
         return self.data_len
