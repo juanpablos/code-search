@@ -1,12 +1,12 @@
 import csv
 import pickle
+import re
+import subprocess
+from ast import literal_eval
+from collections import defaultdict
 
-import jnius_config
 import lmdb
 import pandas as pd
-
-jnius_config.set_classpath('./*')
-from jnius import autoclass
 
 csv.field_size_limit(922337203)
 total = 31703079  # 33369383
@@ -38,6 +38,15 @@ token_vocab_pkl = path + "vocab.tokens.pkl"
 desc_vocab_pkl = path + "vocab.desc.pkl"
 
 
+def split_comment(comment):
+    return re.findall(r"[\w]+", comment.lower())
+
+
+def parse_method(method):
+    return literal_eval(
+        subprocess.check_output(["java", "-jar", "JavaParser.jar", "{}".format(method)]).decode('utf-8').strip())
+
+
 def training_generator():
     with open(comment_file, 'r', encoding='utf8') as f:
         with open(train_file, 'w', encoding='utf8', newline='') as train, open(valid_file, 'w', encoding='utf8',
@@ -45,14 +54,8 @@ def training_generator():
             reader = csv.reader(f)
             train_writer = csv.writer(train)
             valid_writer = csv.writer(valid)
-            lines = 0
-            for line in reader:
-                if lines < train_size:
-                    train_writer.writerow([line[1], line[2]])
-                else:
-                    valid_writer.writerow([line[1], line[2]])
-
-                lines += 1
+            for i, line in enumerate(reader):
+                train_writer.writerow(line) if i < train_size else valid_writer.writerow(line)
 
 
 def filter_comment():
@@ -66,11 +69,15 @@ def filter_comment():
                 use_writer = csv.writer(use)
                 use_code_writer = csv.writer(use_code)
                 for line in reader:
-                    if line[1] != "":
-                        comment_writer.writerow(line)
+                    _comment = split_comment(line[1])
+                    container = parse_method(line[2])
+                    _name, _api, _token = container["name"], container["api"], container["token"]
 
+                    if line[1] != "":
+                        comment_writer.writerow([_name, _api, _token, _comment])
+
+                    use_writer.writerow([_name, _api, _token, []])
                     use_code_writer.writerow([line[2]])
-                    use_writer.writerow([line[1], line[2]])
 
 
 def clean_nulls():
@@ -81,8 +88,53 @@ def clean_nulls():
 
 
 def generate_vocab():
-    generator = autoclass('parser.Vocabulary')()
-    generator.main([path, train_file_name])
+    _name_vocab = defaultdict(int)
+    _api_vocab = defaultdict(int)
+    _token_vocab = defaultdict(int)
+    _comment_vocab = defaultdict(int)
+    with open(train_file, 'r', encoding='utf8') as train:
+        train_reader = csv.reader(train)
+        for _name, _api, _token, _comment in train_reader:
+
+            for name_token in literal_eval(_name):
+                if not (name_token == "" or name_token != " " or name_token != "_"):
+                    _name_vocab[name_token] += 1
+
+            for api_token in literal_eval(_api):
+                if not (api_token == "" or api_token != " " or api_token != "_"):
+                    _api_vocab[api_token] += 1
+
+            for body_token in literal_eval(_token):
+                if not (body_token == "" or body_token != " " or body_token != "_"):
+                    _token_vocab[body_token] += 1
+
+            for comment_token in literal_eval(_comment):
+                if not (comment_token == "" or comment_token != " " or comment_token != "_"):
+                    _comment_vocab[comment_token] += 1
+
+    with open(name_vocab, 'w', encoding='utf8', newline='') as vocab:
+        vocab_writer = csv.writer(vocab)
+        vocab_writer.writerow(["word", "id", "occ"])
+        for i, (t, count) in enumerate(sorted(list(_name_vocab.items()), key=lambda x: x[1], reverse=True), start=2):
+            vocab_writer.writerow([t, i, count])
+
+    with open(api_vocab, 'w', encoding='utf8', newline='') as vocab:
+        vocab_writer = csv.writer(vocab)
+        vocab_writer.writerow(["word", "id", "occ"])
+        for i, (t, count) in enumerate(sorted(list(_api_vocab.items()), key=lambda x: x[1], reverse=True), start=2):
+            vocab_writer.writerow([t, i, count])
+
+    with open(token_vocab, 'w', encoding='utf8', newline='') as vocab:
+        vocab_writer = csv.writer(vocab)
+        vocab_writer.writerow(["word", "id", "occ"])
+        for i, (t, count) in enumerate(sorted(list(_token_vocab.items()), key=lambda x: x[1], reverse=True), start=2):
+            vocab_writer.writerow([t, i, count])
+
+    with open(desc_vocab, 'w', encoding='utf8', newline='') as vocab:
+        vocab_writer = csv.writer(vocab)
+        vocab_writer.writerow(["word", "id", "occ"])
+        for i, (t, count) in enumerate(sorted(list(_comment_vocab.items()), key=lambda x: x[1], reverse=True), start=2):
+            vocab_writer.writerow([t, i, count])
 
 
 def generate_pickle_vocab():
@@ -109,15 +161,15 @@ def load_in_db(name, file, map_size=1e10):
     with open(file, 'r', encoding='utf8') as f:
         reader = csv.reader(f)
         with env.begin(write=True) as txn:
-            for i, line in enumerate(reader):
+            for i, (_name, _api, _token, _comment) in enumerate(reader):
                 row_id = '{:09}'.format(i)
-                data = (line[0], line[1])
+                data = (literal_eval(_name), literal_eval(_api), literal_eval(_token), literal_eval(_comment))
                 txn.put(row_id.encode('ascii'), pickle.dumps(data))
 
 
 if __name__ == "__main__":
-    print("Cleaning null bytes")
-    clean_nulls()
+    # print("Cleaning null bytes")
+    # clean_nulls()
     print("Separating comments and raw code")
     filter_comment()
     print("Splitting train and validation datasets")
