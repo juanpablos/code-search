@@ -1,12 +1,17 @@
 import csv
 import pickle
 import re
-import subprocess
 from ast import literal_eval
 from collections import defaultdict
 
+import jnius_config
 import lmdb
 import pandas as pd
+
+jnius_config.set_classpath('./*')
+from jnius import autoclass
+
+generator = autoclass('parser.MethodCodeParser')()
 
 csv.field_size_limit(922337203)
 total = 31703079  # 33369383
@@ -39,12 +44,11 @@ desc_vocab_pkl = path + "vocab.desc.pkl"
 
 
 def split_comment(comment):
-    return re.findall(r"[\w]+", comment.lower())
+    return re.findall(r"[^\W_]+", comment.lower())
 
 
 def parse_method(method):
-    return literal_eval(
-        subprocess.check_output(["java", "-jar", "JavaParser.jar", "{}".format(method)]).decode('utf-8').strip())
+    return literal_eval(generator.parseMethod(method).toString().replace("\\", ""))
 
 
 def training_generator():
@@ -97,19 +101,19 @@ def generate_vocab():
         for _name, _api, _token, _comment in train_reader:
 
             for name_token in literal_eval(_name):
-                if not (name_token == "" or name_token != " " or name_token != "_"):
+                if not (name_token == "" or name_token == " " or name_token == "_"):
                     _name_vocab[name_token] += 1
 
             for api_token in literal_eval(_api):
-                if not (api_token == "" or api_token != " " or api_token != "_"):
+                if not (api_token == "" or api_token == " " or api_token == "_"):
                     _api_vocab[api_token] += 1
 
             for body_token in literal_eval(_token):
-                if not (body_token == "" or body_token != " " or body_token != "_"):
+                if not (body_token == "" or body_token == " " or body_token == "_"):
                     _token_vocab[body_token] += 1
 
             for comment_token in literal_eval(_comment):
-                if not (comment_token == "" or comment_token != " " or comment_token != "_"):
+                if not (comment_token == "" or comment_token == " " or comment_token == "_"):
                     _comment_vocab[comment_token] += 1
 
     with open(name_vocab, 'w', encoding='utf8', newline='') as vocab:
