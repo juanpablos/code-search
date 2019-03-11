@@ -69,9 +69,9 @@ class CodeSearchDataset(data.Dataset):
             # ([name],[api],[token],[comment])
             name, api, token, comment = pickle.loads(method_bytes)
 
-        names = np.array([self.name_voc.get(_name, UNK_token) for _name in name], dtype=np.int32)
-        apiseq = np.array([self.api_voc.get(_api, UNK_token) for _api in api], dtype=np.int32)
-        tokens = np.array([self.token_voc.get(_token, UNK_token) for _token in token], dtype=np.int32)
+        names = np.array([self.name_voc.get(_name, UNK_token) for _name in name], dtype=np.long)
+        apiseq = np.array([self.api_voc.get(_api, UNK_token) for _api in api], dtype=np.long)
+        tokens = np.array([self.token_voc.get(_token, UNK_token) for _token in token], dtype=np.long)
 
         names = self.pad_seq(names, self.name_len)
         apiseq = self.pad_seq(apiseq, self.api_len)
@@ -80,7 +80,7 @@ class CodeSearchDataset(data.Dataset):
         # re.findall(r"[\w]+", comment.lower())
 
         if self.training:
-            good_desc = np.array([self.desc_voc.get(word, UNK_token) for word in comment], dtype=np.int32)
+            good_desc = np.array([self.desc_voc.get(word, UNK_token) for word in comment], dtype=np.long)
             good_desc = self.pad_seq(good_desc, self.desc_len)
 
             rand_offset = random.randint(0, self.data_len - 1)
@@ -89,7 +89,7 @@ class CodeSearchDataset(data.Dataset):
                 _, _, _, bad_comment = pickle.loads(method_bytes)
 
             bad_desc = np.array(
-                [self.desc_voc.get(word, UNK_token) for word in bad_comment], dtype=np.int32)
+                [self.desc_voc.get(word, UNK_token) for word in bad_comment], dtype=np.long)
             bad_desc = self.pad_seq(bad_desc, self.desc_len)
 
             return names, apiseq, tokens, good_desc, bad_desc
