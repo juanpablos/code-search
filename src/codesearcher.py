@@ -8,12 +8,11 @@ import threading
 import numpy as np
 import torch
 import torch.nn.functional as F
-from torch import optim
-from tqdm import tqdm
-
 from configs import get_config
 from data import load_dict, CodeSearchDataset, load_vecs, save_vecs
 from models import JointEmbeder
+from torch import optim
+from tqdm import tqdm
 from utils import normalize, dot_np, gVar, sent2indexes
 
 random.seed(42)
@@ -93,6 +92,7 @@ class CodeSearcher:
         save_every = self.model_params['save_every']
         batch_size = self.model_params['batch_size']
         nb_epoch = self.model_params['nb_epoch']
+        valid_every = self.model_params['valid_every']
 
         train_set = CodeSearchDataset(self.model_params['train_db'],
                                       self.vocab_methname, self.model_params['name_len'],
@@ -121,6 +121,10 @@ class CodeSearcher:
 
             if epoch and epoch % save_every == 0:
                 self.save_model_epoch(model, epoch)
+
+            if epoch and epoch % valid_every == 0:
+                logger.info("validating..")
+                self.eval(model, 1000, 1)
 
             logger.info('[SUMMARY] epo:[{}/{}] Loss={:.5f}'.format(epoch, nb_epoch, np.mean(epoch_loss)))
 

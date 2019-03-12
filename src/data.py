@@ -66,7 +66,7 @@ class CodeSearchDataset(data.Dataset):
     def __getitem__(self, offset):
         with self.data.begin(write=False) as txn:
             method_bytes = txn.get('{:09}'.format(offset).encode('ascii'))
-            # ([name],[api],[token],[comment])
+            # ([name], [api], [token], [comment])
             name, api, token, comment = pickle.loads(method_bytes)
 
         names = np.array([self.name_voc.get(_name, UNK_token) for _name in name], dtype=np.long)
@@ -76,8 +76,6 @@ class CodeSearchDataset(data.Dataset):
         names = self.pad_seq(names, self.name_len)
         apiseq = self.pad_seq(apiseq, self.api_len)
         tokens = self.pad_seq(tokens, self.token_len)
-
-        # re.findall(r"[\w]+", comment.lower())
 
         if self.training:
             good_desc = np.array([self.desc_voc.get(word, UNK_token) for word in comment], dtype=np.long)
@@ -102,7 +100,8 @@ class CodeSearchDataset(data.Dataset):
 
 def load_dict(filename, max_vocab):
     with open(filename, 'rb') as f:
-        vocab = pickle.load(f)[:max_vocab + 1]  # pandas DataFrame
+        # needs to be -2 because we have 2 more tokens, PAD_token = 0 and UNK_token = 1
+        vocab = pickle.load(f)[:max_vocab - 2]  # pandas DataFrame
         return dict(zip(vocab.iloc[:, 0], vocab.iloc[:, 1]))
 
 

@@ -32,11 +32,11 @@ def get_config():
         # training_params
         'batch_size': 128,
         'chunk_size': 2000000,
-        'nb_epoch': 1000,
+        'nb_epoch': 500,
         # 'validation_split': 0.2,
         # 'optimizer': 'adam',
         'lr': 0.001,
-        'valid_every': 5,
+        'valid_every': 10,
         'n_eval': 100,
         # 'evaluate_all_threshold': {
         #     'mode': 'all',
